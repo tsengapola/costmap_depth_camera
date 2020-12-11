@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <arg name="map_file" default="$(find costmap_depth_camera)/map/gallery.yaml"/>
+    <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" output="screen">
+        <rosparam file="$(arg map_file)" command="load" />
+    </node>
+
+  <!-- Run the costmap node, load the yaml in our directory -->
+  <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node" output="screen">
+    <rosparam file="$(find costmap_depth_camera)/launch/costmap_depth_camera.yaml" command="load"/>
+  </node>
+
+  <!-- Publish map to base_link tf using gyro data -->
+  <node name="imu_tf_node" pkg="costmap_depth_camera" type="imu_tf.py" output="screen" />
+  
+  <!-- Provide full connection from map to camera_link -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="baselink2camera" args="0.0 0.0 0 0 0 0 base_link camera_link" output="screen" /> 
+  
+</launch>

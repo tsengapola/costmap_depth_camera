@@ -1,0 +1,38 @@
+costmap:
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 5
+  static_map: false
+  rolling_window: true
+  width: 20
+  height: 20
+  resolution: 0.05  
+  transform_tolerance: 1.0
+  footprint: [[0.46,0.25], [0.36,0.37], [0.33,0.39], [-0.39,0.4], [-0.48,0], [-0.39,-0.4], [0.33,-0.39], [0.36,-0.37], [0.46,-0.25], [0.49,0]]
+
+  plugins:
+    - {name: static, type: 'costmap_2d::StaticLayer'}
+    - {name: 3DPerception, type: 'costmap_depth_camera::DepthCameraObstacleLayer'}
+    - {name: inflation, type: 'costmap_2d::InflationLayer'}
+
+  static:
+    map_topic: /map
+
+  inflation:
+    inflation_radius: 1.0
+    cost_scaling_factor: 0.5
+
+  3DPerception:
+    forced_clearing_distance: 0.1
+    ec_seg_distance: 0.2
+    ec_cluster_min_size: 5
+    size_of_cluster_rejection: 5
+    voxel_resolution: 0.01
+    check_radius: 0.1
+    number_clearing_threshold: 2
+    enable_near_blocked_protection: false
+    number_points_considered_as_blocked: 5
+    observation_sources: depth_cam #depth_cam_left
+    depth_cam: {sensor_frame: camera_link, topic: /camera/depth/color/points, expected_update_rate: 0.3, FOV_W: 1.0, FOV_V: 0.9, min_detect_distance: 0.15, max_detect_distance: 2.0, min_obstacle_height: 0.08}
+    #depth_cam_left: {sensor_frame: camera_link_left, topic: /camera_left/depth/color/points, expected_update_rate: 0.3, FOV_W: 1.0, FOV_V: 0.9, min_detect_distance: 0.15, max_detect_distance: 2.0, min_obstacle_height: 0.08}
