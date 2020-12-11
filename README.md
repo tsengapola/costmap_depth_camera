@@ -105,3 +105,6 @@ Make sure the sensor_frame in yaml file follows the setting (in general case of 
 The orange points show the frustum of my camera.
 
 <img src="https://github.com/tsengapola/my_image_repo/blob/main/frustum_axis.png" width="450" height="270"/>
+
+## Acknowledge
+Many thanks to [Uniring MAX - The leader of robotic floor scrubber](https://portalimages.blob.core.windows.net/products/pdfs/fsngkduv_UNIRING-MAX_AE_FINAL.pdf)
