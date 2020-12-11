@@ -18,11 +18,11 @@ This plugin comprises two parts:
 
 ## Launch Example
 
-* Note that costmap_depth_camera.launch subscribe imu data from realsense D435i and create TF from map-->base_link. Change anything to meet your system requirements.
-
-> roslaunch realsense2_camera rs_camera.launch
-
-> roslaunch costmap_depth_camera costmap_depth_camera.launch 
+* Note that costmap_depth_camera.launch subscribe imu data from realsense D435i and create TF from map-->base_link. Change anything to meet your system requirements. If you have point cloud published, realsense is not needed.
+```
+roslaunch realsense2_camera rs_camera.launch
+roslaunch costmap_depth_camera costmap_depth_camera.launch 
+```
 
 ## .yaml example of a workable setting:
 
