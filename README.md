@@ -12,8 +12,8 @@ This plugin comprises two parts:
   
 ## Demo: Use realsense with the point cloud published
 <p float="left">
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/Use%20depth%20camera%20(realsense)%20to%20detect%20the%20bar%20across%20the%20cones.gif" width="420" height="265"/>
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/op-costmap-depth-cam.gif" width="420" height="265"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/Use%20depth%20camera%20(realsense)%20to%20detect%20the%20bar%20across%20the%20cones.gif" width="400" height="265"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/op-costmap-depth-cam.gif" width="400" height="265"/>
 </p>
 
 
