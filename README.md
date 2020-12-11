@@ -16,7 +16,12 @@ This plugin comprises two parts:
 <img src="https://github.com/tsengapola/my_image_repo/blob/main/op-costmap-depth-cam.gif" width="400" height="265"/>
 </p>
 
+## Launch Example
 
+* Note that costmap_depth_camera.launch subscribe imu data from realsense D435i and create TF from map-->base_link. Change anything to meet your system requirements.
+
+> roslaunch realsense2_camera rs_camera.launch
+> roslaunch costmap_depth_camera costmap_depth_camera.launch 
 
 ## .yaml example of a workable setting:
 
