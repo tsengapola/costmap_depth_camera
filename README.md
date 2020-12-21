@@ -12,8 +12,8 @@ This plugin comprises two parts:
   
 ## Demo: Use realsense with the point cloud published
 <p float="left">
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/Use%20depth%20camera%20(realsense)%20to%20detect%20the%20bar%20across%20the%20cones.gif" width="400" height="265"/>
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/op-costmap-depth-cam.gif" width="400" height="265"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/Use%20depth%20camera%20(realsense)%20to%20detect%20the%20bar%20across%20the%20cones.gif" width="400" height="265"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/op-costmap-depth-cam.gif" width="400" height="265"/>
 </p>
 
 ## Launch Example
@@ -104,7 +104,7 @@ For example, my robot can always see floor and thus the point cloud will always 
 Make sure the sensor_frame in yaml file follows the setting (in general case of realsense is camera_link), i.e.: z axes points to sky, x axes points to moving direction.
 The orange points show the frustum of my camera.
 
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/frustum_axis.png" width="450" height="270"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/frustum_axis.png" width="450" height="270"/>
 
 ## Acknowledge
 Many thanks to [Uniring MAX - The leader of robotic floor scrubber](https://portalimages.blob.core.windows.net/products/pdfs/fsngkduv_UNIRING-MAX_AE_FINAL.pdf)
