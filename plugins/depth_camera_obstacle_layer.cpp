@@ -267,7 +267,7 @@ void DepthCameraObstacleLayer::pubFrustum(std::vector<costmap_depth_camera::Obse
   }
 
   pcl_conversions::toPCL(ros::Time::now(), pub_frustum->header.stamp);
-  pub_frustum->header.frame_id = "map";
+  pub_frustum->header.frame_id = global_frame_;
   frustum_pub_.publish(pub_frustum);
   
 }
@@ -373,7 +373,7 @@ void DepthCameraObstacleLayer::ClearMarkingbyKdtree(
   
   if(is_marking_sub){
     pcl_conversions::toPCL(ros::Time::now(), marking->header.stamp);
-    marking->header.frame_id = "map";
+    marking->header.frame_id = global_frame_;
     marking_pub_.publish(marking);
   }
 
@@ -526,7 +526,7 @@ void DepthCameraObstacleLayer::updateBounds(double robot_x, double robot_y, doub
     }  
     if(cluster_pub_.getNumSubscribers()>0){
       pcl_conversions::toPCL(ros::Time::now(), cloud_clustered2pub->header.stamp);
-      cloud_clustered2pub->header.frame_id = "map";
+      cloud_clustered2pub->header.frame_id = global_frame_;
       cluster_pub_.publish(cloud_clustered2pub);
     }
   }
