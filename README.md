@@ -72,15 +72,12 @@ costmap:
 ## Parameters Description (many of them are supported in dynamic reconfigure)
 
 * use_global_frame_to_mark: true
-> This is the new feature in ver 2.0.
-
-See below video, you can find that when robot is moving, the marking is moving as the local frame. 
+> This is the new feature in ver 2.0. 
+> See below left video (use_global_frame_to_mark: false), you can find that when robot is moving, the marking is moving as the local frame. 
 The evidence shows that when the realsense turns from right to left, the right marking is moving with robot.
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/local_marking.gif" width="400" height="265"/>
-
-See below video, you can find that when robot is moving, the marking is moving as the global frame. 
-The evidence shows that when the realsense turns from right to left, the right marking is kept in its marked location.
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/global_marking.gif" width="400" height="265"/>
+While in the right video (use_global_frame_to_mark: true). The evidence shows that when the realsense turns from right to left, the right marking is kept in its marked location.
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/local_marking.gif" width="380" height="265"/>
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/global_marking.gif" width="380" height="265"/>
 
 I would suggest that to set use_global_frame_to_mark as true if you are good localization system.
 
