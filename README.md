@@ -73,13 +73,20 @@ costmap:
 
 * use_global_frame_to_mark: true
 > This is the new feature in ver 2.0. 
+ 
 > See below left video (use_global_frame_to_mark: false), you can find that when robot is moving, the marking is moving as the local frame. 
 The evidence shows that when the realsense turns from right to left, the right marking is moving with robot.
-While in the right video (use_global_frame_to_mark: true). The evidence shows that when the realsense turns from right to left, the right marking is kept in its marked location.
+
+>While in the right video (use_global_frame_to_mark: true). The evidence shows that when the realsense turns from right to left, the right marking is kept in its marked location.
+
+>I would suggest that to set use_global_frame_to_mark as true if you are good localization system.
+
+<p float="left">
 <img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/local_marking.gif" width="380" height="265"/>
 <img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/global_marking.gif" width="380" height="265"/>
+</p>
 
-I would suggest that to set use_global_frame_to_mark as true if you are good localization system.
+
 
 * ec_seg_distance: 0.2
 * ec_cluster_min_size: 5
