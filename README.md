@@ -19,6 +19,8 @@ This plugin comprises two parts:
 ## Launch Example
 
 * Note that costmap_depth_camera.launch subscribe imu data from realsense D435i and create TF from map-->base_link. Change anything to meet your system requirements. If you have point cloud published, realsense is not needed.
+* Note that if you are using ros-noetic then the first line of imu_tf.py is python3 which is ok! If you are using ros-melodic, change it to python2! ex: #!/usr/bin/env python3 --> #!/usr/bin/env python2
+
 ```
 roslaunch realsense2_camera rs_camera.launch
 roslaunch costmap_depth_camera costmap_depth_camera.launch 
@@ -53,6 +55,7 @@ costmap:
     cost_scaling_factor: 0.5
 
   3DPerception:
+    use_global_frame_to_mark: true
     ec_seg_distance: 0.2
     ec_cluster_min_size: 5
     size_of_cluster_rejection: 5
@@ -67,6 +70,19 @@ costmap:
 ```
 
 ## Parameters Description (many of them are supported in dynamic reconfigure)
+
+* use_global_frame_to_mark: true
+> This is the new feature in ver 2.0.
+
+See below video, you can find that when robot is moving, the marking is moving as the local frame. 
+The evidence shows that when the realsense turns from right to left, the right marking is moving with robot.
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/local_marking.gif" width="400" height="265"/>
+
+See below video, you can find that when robot is moving, the marking is moving as the global frame. 
+The evidence shows that when the realsense turns from right to left, the right marking is kept in its marked location.
+<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/global_marking.gif" width="400" height="265"/>
+
+I would suggest that to set use_global_frame_to_mark as true if you are good localization system.
 
 * ec_seg_distance: 0.2
 * ec_cluster_min_size: 5
@@ -85,7 +101,7 @@ For ec_seg_distance, it is useful when some object is black and small, if it is 
 * check_radius: 0.1
 
 > A kd-tree radius search of a marked point will be used to find the neighbors, if number of neighbors is higher than number_clearing_threshold. The marked point will be cleared.
-For example, a marked point  only has one neighbor within 0.1 meter. So the marked point will be cleared.
+For example, a marked point only has one neighbor within 0.1 meter. So the marked point will be cleared.
 
 * forced_clearing_distance: 0.1
 
@@ -96,8 +112,8 @@ For example, a marked point  only has one neighbor within 0.1 meter. So the mark
 * enable_near_blocked_protection: true
 
 > If number of points in point cloud is less than 'number_points_considered_as_blocked', clearing mechanism is skip.
-For example, my robot can always see floor and thus the point cloud will always has points. If a new message arrive with few points, we simply assume the depth camera is blocked by something (mostly people's hand, they like to wave their hands in front of robot).
-> When depth camera detect nothing, it will clear all markings in the frustum, by enabling this protect function, the false clearing can be prevent.
+For example, my robot can always see floor and thus the point cloud will always have points. If a new message arrive with few points, we simply assume the depth camera is blocked by something (mostly people's hand, they like to wave their hands in front of robot).
+> When the depth camera detects nothing, it will clear all markings in the frustum, by enabling this protect function, the false clearing can be prevented.
 
 ## TF requirement
 

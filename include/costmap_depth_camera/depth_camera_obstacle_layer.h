@@ -173,6 +173,7 @@ private:
 
   /*Voxel structure*/
   std::map<unsigned int, std::map<int, float> > pc_3d_map_;
+  std::map<std::pair<int, int>, std::map<int, float> > pc_3d_map_global_;
   std::pair <std::map<int, float>::iterator, bool> insert_ptr_;
 
   /*For euclidean distance segmentation*/
@@ -197,6 +198,23 @@ private:
   Frame is based on base_link
   */
   double forced_clearing_distance_;
+
+  /*
+  Relevant variable for new features --> marking/clearing using global frame
+  */
+  bool use_global_frame_to_mark_;
+  
+  void worldToIntIndex(double wx, double wy, int& mx, int& my, double resolution) const
+  {
+    mx = (int)((wx) / resolution);
+    my = (int)((wy) / resolution);
+  }
+
+  void intIndexToWorld(double& wx, double& wy, int mx, int my, double resolution) const
+  {
+    wx = mx * resolution;
+    wy = my * resolution;
+  }
 
 };
 

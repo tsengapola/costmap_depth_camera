@@ -16,14 +16,17 @@ def imu_Cb(sensor_data):
     global last_gyro
     global last_time
     global theta
+    global x
     try:
         last_time
         last_gyro
         theta
+        x
     except:
         last_time = rospy.Time.now()
         last_gyro = sensor_data.angular_velocity.y
         theta = 0
+        x = 16.5
         return
     
     if(abs(sensor_data.angular_velocity.y)<0.05):
@@ -34,7 +37,7 @@ def imu_Cb(sensor_data):
     dt = rospy.Time.now().to_time()-last_time.to_time()
     theta += (current_angular_y + last_gyro)*dt/2.
     
-    br.sendTransform((16.5, 42.6, 1.0),
+    br.sendTransform((x, 42.6, 1.0),
                      quaternion_from_euler(0, 0, theta),
                      rospy.Time.now(),
                      "base_link",
@@ -42,6 +45,7 @@ def imu_Cb(sensor_data):
     
     last_gyro = current_angular_y
     last_time = rospy.Time.now()
+    x+=0.001
 
 if __name__ == '__main__':
     rospy.init_node('imu_tf_broadcaster')

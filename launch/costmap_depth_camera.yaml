@@ -24,6 +24,7 @@ costmap:
     cost_scaling_factor: 0.5
 
   3DPerception:
+    use_global_frame_to_mark: true
     forced_clearing_distance: 0.1
     ec_seg_distance: 0.2
     ec_cluster_min_size: 5

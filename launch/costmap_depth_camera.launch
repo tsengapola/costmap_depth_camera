@@ -11,8 +11,11 @@
     <rosparam file="$(find costmap_depth_camera)/launch/costmap_depth_camera.yaml" command="load"/>
   </node>
 
-  <!-- Publish map to base_link tf using gyro data -->
-  <node name="imu_tf_node" pkg="costmap_depth_camera" type="imu_tf.py" output="screen" />
+  <!-- 
+    Publish map to base_link tf using gyro data; 
+    This is just for testing, you can remove this node (imu_tf_node) if you have your own tf
+  -->
+  <node name="imu_tf_node" pkg="costmap_depth_camera" type="imu_tf_moving.py" output="screen" />
   
   <!-- Provide full connection from map to camera_link -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="baselink2camera" args="0.0 0.0 0 0 0 0 base_link camera_link" output="screen" /> 

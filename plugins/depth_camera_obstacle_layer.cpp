@@ -87,7 +87,7 @@ void DepthCameraObstacleLayer::onInitialize()
   nh.param("voxel_resolution", voxel_resolution_, 0.01);
   nh.param("check_radius", check_radius_, 0.1);
   nh.param("number_clearing_threshold", number_clearing_threshold_, 2);
-  
+  nh.param("use_global_frame_to_mark", use_global_frame_to_mark_, true);
 
   marking_height_under_ground_ = 100.0;
   marking_height_above_ground_ = -100.0;
@@ -318,59 +318,115 @@ void DepthCameraObstacleLayer::ClearMarkingbyKdtree(
   */
   FrustumUtils frustum_utils(&observations);
   
-  for(auto it_3d_map=pc_3d_map_.begin();it_3d_map!=pc_3d_map_.end();it_3d_map++){
-    
-    indexToCells((*it_3d_map).first, mx, my);
-    mapToWorld(mx, my, wx, wy);
+  if(!use_global_frame_to_mark_){
+    /*Iterate marking*/
+    for(auto it_3d_map=pc_3d_map_.begin();it_3d_map!=pc_3d_map_.end();it_3d_map++){
+      
+      indexToCells((*it_3d_map).first, mx, my);
+      mapToWorld(mx, my, wx, wy);
 
-    bool is_in_FRUSTUM = false;
-    bool is_attach_FRUSTUM = false;
-    bool is_check_clear = false;
-    //if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
-    if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub){
-      continue;
-    }
-
-    for(auto it = (*it_3d_map).second.begin(), next_it = it; it != (*it_3d_map).second.end(); it = next_it) {
-      ++next_it;
-
-      searchPoint.x = wx;
-      searchPoint.y = wy;
-      searchPoint.z = (*it).first*voxel_resolution_;
-      searchPoint.intensity = (*it).second;
-
-      if(is_marking_sub){
-        marking->push_back(searchPoint);
+      bool is_in_FRUSTUM = false;
+      bool is_attach_FRUSTUM = false;
+      bool is_check_clear = false;
+      //if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
+      if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub){
+        continue;
       }
 
-      pointIdxRadiusSearch.clear();
-      pointRadiusSquaredDistance.clear();
-      double pc_dis = hypot(wx-robot_x,wy-robot_y);
-      is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
+      for(auto it = (*it_3d_map).second.begin(), next_it = it; it != (*it_3d_map).second.end(); it = next_it) {
+        ++next_it;
 
-      if(is_in_FRUSTUM && clear_all_marking_in_this_frame){
-        /*Nothing is detected, clear all markings.*/
-        //ROS_WARN("Clear all markinging in this frame.");
-        (*it_3d_map).second.erase(it);
-      }
-      else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_){
-        //ROS_WARN("CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-        //if(pc_dis<=forced_clearing_distance_)
-        //  ROS_WARN("Clear by Footprint: %.2f",pc_dis);
-        (*it_3d_map).second.erase(it);
-      }
-      else if (is_in_FRUSTUM && !bypass_clearing) {
-        if(kdtree_gbl.radiusSearch (searchPoint, check_radius_, pointIdxRadiusSearch, pointRadiusSquaredDistance)<number_clearing_threshold_){
-          //ROS_WARN("Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+        searchPoint.x = wx;
+        searchPoint.y = wy;
+        searchPoint.z = (*it).first*voxel_resolution_;
+        searchPoint.intensity = (*it).second;
+
+        if(is_marking_sub){
+          marking->push_back(searchPoint);
+        }
+
+        pointIdxRadiusSearch.clear();
+        pointRadiusSquaredDistance.clear();
+        double pc_dis = hypot(wx-robot_x,wy-robot_y);
+        is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
+
+        if(is_in_FRUSTUM && clear_all_marking_in_this_frame){
+          /*Nothing is detected, clear all markings.*/
+          //ROS_WARN("Clear all markinging in this frame.");
           (*it_3d_map).second.erase(it);
         }
-      }
-      else {
-        //ROS_WARN("Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+        else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_){
+          //ROS_WARN("CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+          //if(pc_dis<=forced_clearing_distance_)
+          //  ROS_WARN("Clear by Footprint: %.2f",pc_dis);
+          (*it_3d_map).second.erase(it);
+        }
+        else if (is_in_FRUSTUM && !bypass_clearing) {
+          if(kdtree_gbl.radiusSearch (searchPoint, check_radius_, pointIdxRadiusSearch, pointRadiusSquaredDistance)<number_clearing_threshold_){
+            //ROS_WARN("Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+            (*it_3d_map).second.erase(it);
+          }
+        }
+        else {
+          //ROS_WARN("Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+        }
       }
     }
   }
-  
+  else{
+    /*Iterate marking in global frame marking mode*/
+    for(auto it_3d_map=pc_3d_map_global_.begin();it_3d_map!=pc_3d_map_global_.end();it_3d_map++){
+      
+      intIndexToWorld(wx, wy, (*it_3d_map).first.first, (*it_3d_map).first.second, layered_costmap_->getCostmap()->getResolution());
+
+      bool is_in_FRUSTUM = false;
+      bool is_attach_FRUSTUM = false;
+      bool is_check_clear = false;
+      //if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
+      if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub){
+        continue;
+      }
+
+      for(auto it = (*it_3d_map).second.begin(), next_it = it; it != (*it_3d_map).second.end(); it = next_it) {
+        ++next_it;
+
+        searchPoint.x = wx;
+        searchPoint.y = wy;
+        searchPoint.z = (*it).first*voxel_resolution_;
+        searchPoint.intensity = (*it).second;
+
+        if(is_marking_sub){
+          marking->push_back(searchPoint);
+        }
+
+        pointIdxRadiusSearch.clear();
+        pointRadiusSquaredDistance.clear();
+        double pc_dis = hypot(wx-robot_x,wy-robot_y);
+        is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
+
+        if(is_in_FRUSTUM && clear_all_marking_in_this_frame){
+          /*Nothing is detected, clear all markings.*/
+          //ROS_WARN("Clear all markinging in this frame.");
+          (*it_3d_map).second.erase(it);
+        }
+        else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_){
+          //ROS_WARN("CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+          //if(pc_dis<=forced_clearing_distance_)
+          //  ROS_WARN("Clear by Footprint: %.2f",pc_dis);
+          (*it_3d_map).second.erase(it);
+        }
+        else if (is_in_FRUSTUM && !bypass_clearing) {
+          if(kdtree_gbl.radiusSearch (searchPoint, check_radius_, pointIdxRadiusSearch, pointRadiusSquaredDistance)<number_clearing_threshold_){
+            //ROS_WARN("Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+            (*it_3d_map).second.erase(it);
+          }
+        }
+        else {
+          //ROS_WARN("Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+        }
+      }
+    }    
+  }
   if(is_marking_sub){
     pcl_conversions::toPCL(ros::Time::now(), marking->header.stamp);
     marking->header.frame_id = global_frame_;
@@ -419,24 +475,42 @@ void DepthCameraObstacleLayer::ProcessCluster(std::vector<costmap_depth_camera::
       continue;
     }  
     
+    if(!use_global_frame_to_mark_){
+      if (!worldToMap(wx, wy, mx, my))
+      {
+        ROS_DEBUG("Computing map coords failed");
+        continue;
+      }    
+      
+      unsigned int index = getIndex(mx,my);
 
-    if (!worldToMap(wx, wy, mx, my))
-    {
-      ROS_DEBUG("Computing map coords failed");
-      continue;
-    }    
-    
-    unsigned int index = getIndex(mx,my);
+      int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
+      if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        continue;
 
-    int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-    if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
-      continue;
+      insert_ptr_ = pc_3d_map_[index].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
+      if(!insert_ptr_.second)//the key is already in map, put max label in it!
+        pc_3d_map_[index][h_ind] = std::max(pc_3d_map_[index][h_ind],cluster_cloud->points[i].intensity);
 
-    insert_ptr_ = pc_3d_map_[index].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
-    if(!insert_ptr_.second)//the key is already in map, put max label in it!
-      pc_3d_map_[index][h_ind] = std::max(pc_3d_map_[index][h_ind],cluster_cloud->points[i].intensity);
+      touch(wx, wy, min_x, min_y, max_x, max_y);
+    }
+    else{
 
-    touch(wx, wy, min_x, min_y, max_x, max_y);
+      //We use int type to store the point clouds in pc_3d_map_global_
+      worldToIntIndex(wx, wy, mmx, mmy, layered_costmap_->getCostmap()->getResolution());
+
+      //check height which should be the same as what we did
+      int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
+      if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        continue;
+      //Add into std::map
+      insert_ptr_ = pc_3d_map_global_[std::pair<int, int>(mmx, mmy)].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
+      if(!insert_ptr_.second)//the key is already in map, put max label in it!
+        pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind] = std::max(pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind],cluster_cloud->points[i].intensity);
+
+      touch(wx, wy, min_x, min_y, max_x, max_y);
+      
+    }
 
   }
 
@@ -556,26 +630,55 @@ void DepthCameraObstacleLayer::updateCosts(costmap_2d::Costmap2D& master_grid, i
 {
   if (!enabled_)
     return;
-  
+
   unsigned char* master_array = master_grid.getCharMap();
   unsigned int mx, my; 
 
-  for(auto it_3d_map=pc_3d_map_.begin();it_3d_map!=pc_3d_map_.end();){
-    
-    indexToCells((*it_3d_map).first, mx, my);
+  if(!use_global_frame_to_mark_){
+    for(auto it_3d_map=pc_3d_map_.begin();it_3d_map!=pc_3d_map_.end();){
+      
+      indexToCells((*it_3d_map).first, mx, my);
 
-    /*
-    * mx+1/mx-1 check is used to solve an issue of rounding problem, due to rounding may shift the index 1 step ahead
-    */
-    if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty()){
-      unsigned int index = getIndex(mx,my);
-      master_array[index] = std::max(costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
-      ++it_3d_map;
-    }
-    else{
-      pc_3d_map_.erase(it_3d_map++);
+      /*
+      * mx+1/mx-1 check is used to solve an issue of rounding problem, due to rounding may shift the index 1 step ahead
+      */
+      if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty()){
+        unsigned int index = getIndex(mx,my);
+        master_array[index] = std::max(costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+        ++it_3d_map;
+      }
+      else{
+        pc_3d_map_.erase(it_3d_map++);
+      }
     }
   }
+  else{
+    double wx, wy;
+    for(auto it_3d_map=pc_3d_map_global_.begin();it_3d_map!=pc_3d_map_global_.end();){
+
+      intIndexToWorld(wx, wy, (*it_3d_map).first.first, (*it_3d_map).first.second, layered_costmap_->getCostmap()->getResolution());
+
+      if (!worldToMap(wx, wy, mx, my))
+      {
+        ROS_DEBUG("Computing map coords failed");
+        ++it_3d_map;
+        continue;
+      }    
+
+      /*
+      * mx+1/mx-1 check is used to solve an issue of rounding problem, due to rounding may shift the index 1 step ahead
+      */
+      if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty()){
+        unsigned int index = getIndex(mx,my);
+        master_array[index] = std::max(costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+        ++it_3d_map;
+      }
+      else{
+        pc_3d_map_global_.erase(it_3d_map++);
+      }
+    }
+  }
+
   
   if (footprint_clearing_enabled_)
   {
