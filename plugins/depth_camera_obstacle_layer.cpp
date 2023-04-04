@@ -128,7 +128,7 @@ void DepthCameraObstacleLayer::onInitialize()
     source_node.param("FOV_V", FOV_V, 1.0);
     source_node.param("FOV_W", FOV_W, 1.5);
     source_node.param("min_detect_distance", min_detect_distance, 0.15);
-    source_node.param("max_detect_distanxe", max_detect_distance, 2.5);
+    source_node.param("max_detect_distance", max_detect_distance, 2.5);
 
     /*Update minimum height and maximum height for overall marking*/
     marking_height_above_ground_ = std::max(marking_height_above_ground_,max_obstacle_height);
