@@ -23,6 +23,9 @@
     <depend>message_filters</depend>
     <depend>geometry_msgs</depend>
     <depend>pluginlib</depend>
+    <depend>libpcl-all</depend>
+    <depend>pcl_conversions</depend>
+
 
     <!--
     <export>

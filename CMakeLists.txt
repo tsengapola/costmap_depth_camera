@@ -29,6 +29,26 @@ find_package(pluginlib REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system thread)
+
+find_package(PCL REQUIRED COMPONENTS filters common)
+if(NOT "${PCL_LIBRARIES}" STREQUAL "")
+  # This package fails to build on Debian Stretch with a linking error against
+  # 'Qt5::Widgets'.  This is a transitive dependency that comes in to PCL via
+  # the PCL dependency on VTK.  However, we don't actually care about the Qt
+  # dependencies for this package, so just remove them.  This is similar to the
+  # workaround in https://github.com/ros-perception/perception_pcl/pull/151,
+  # and can be removed when Stretch goes out of support.
+  list(REMOVE_ITEM PCL_LIBRARIES
+    "vtkGUISupportQt"
+    "vtkGUISupportQtOpenGL"
+    "vtkGUISupportQtSQL"
+    "vtkGUISupportQtWebkit"
+    "vtkViewsQt"
+    "vtkRenderingQt")
+endif()
 
 set(dep_pkgs
     rclcpp
@@ -37,15 +57,32 @@ set(dep_pkgs
 )
 
 # === Build ===
+include_directories(
+  include
+  ${BOOST_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
+)
+
 add_library(${lib_name} SHARED
             src/observation_buffer.cpp)
-include_directories(include)
+
+target_link_libraries(${lib_name} "${cpp_typesupport_target}")
+target_compile_definitions(${lib_name} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
+
+target_link_libraries(${lib_name}
+  ${Boost_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
 ament_target_dependencies(${lib_name}
   rclcpp
   rclcpp_components
   sensor_msgs
   geometry_msgs
   std_msgs
+  pcl_conversions
 )
 
 # === Installation ===
