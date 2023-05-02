@@ -36,9 +36,9 @@
  *********************************************************************/
 #include <costmap_depth_camera/observation_buffer.h>
 
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
-#include <sensor_msgs/point_cloud2_iterator.h>
+//#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+//#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
+//#include <sensor_msgs/point_cloud2_iterator.h>
 
 /*
 pcl::removeNaNFromPointCloud
@@ -74,6 +74,7 @@ ObservationBuffer::~ObservationBuffer()
 
 bool ObservationBuffer::setGlobalFrame(const std::string new_global_frame)
 {
+#if(0)
   ros::Time transform_time = ros::Time::now();
   std::string tf_error;
 
@@ -115,10 +116,13 @@ bool ObservationBuffer::setGlobalFrame(const std::string new_global_frame)
   // now we need to update our global_frame member
   global_frame_ = new_global_frame;
   return true;
+#endif
 }
 
 void ObservationBuffer::bufferCloud(const sensor_msgs::PointCloud2& cloud)
 {
+
+#if(0)
   geometry_msgs::PointStamped global_origin;
 
   // create a new observation on the list to be populated
@@ -206,11 +210,14 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::PointCloud2& cloud)
 
   // we'll also remove any stale observations from the list
   purgeStaleObservations();
+#endif
 }
 
 // returns a copy of the observations
 void ObservationBuffer::getObservations(vector<Observation>& observations)
 {
+ 
+#if(0)
   // first... let's make sure that we don't have any stale observations
   purgeStaleObservations();
 
@@ -220,10 +227,14 @@ void ObservationBuffer::getObservations(vector<Observation>& observations)
   {
     observations.push_back(*obs_it);
   }
+#endif
 }
 
 void ObservationBuffer::purgeStaleObservations()
 {
+
+#if(0)
+
   if (!observation_list_.empty())
   {
     list<Observation>::iterator obs_it = observation_list_.begin();
@@ -246,10 +257,14 @@ void ObservationBuffer::purgeStaleObservations()
       }
     }
   }
+#endif
+
 }
 
 bool ObservationBuffer::isCurrent() const
 {
+  
+#if(0)
   if (expected_update_rate_ == ros::Duration(0.0))
     return true;
 
@@ -261,11 +276,13 @@ bool ObservationBuffer::isCurrent() const
         topic_name_.c_str(), (ros::Time::now() - last_updated_).toSec(), expected_update_rate_.toSec());
   }
   return current;
+#endif
 }
 
 void ObservationBuffer::resetLastUpdated()
 {
-  last_updated_ = ros::Time::now();
+
+  //last_updated_ = ros::Time::now();
 }
 }  // namespace costmap_depth_camera
 

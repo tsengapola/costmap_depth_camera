@@ -32,12 +32,11 @@
 #ifndef COSTMAP_DEPTH_CAMERA_OBSERVATION_H_
 #define COSTMAP_DEPTH_CAMERA_OBSERVATION_H_
 
-#include <geometry_msgs/Point.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/msg/point32.hpp> 
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
-
 
 namespace costmap_depth_camera
 {
@@ -80,7 +79,7 @@ public:
     delete frustum_normal_;
   }
 
-  geometry_msgs::Point origin_;
+  geometry_msgs::msg::Point32 origin_;
   pcl::PointCloud<pcl::PointXYZI>* cloud_;
   pcl::PointCloud<pcl::PointXYZ>* frustum_;
   pcl::PointCloud<pcl::PointXYZ>* frustum_normal_;

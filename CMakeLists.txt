@@ -1,107 +1,67 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(costmap_depth_camera)
 
-find_package(catkin REQUIRED
-        COMPONENTS
-            cmake_modules
-            dynamic_reconfigure
-            geometry_msgs
-            map_msgs
-            message_filters
-            message_generation
-            nav_msgs
-            pluginlib
-            roscpp
-            sensor_msgs
-            std_msgs
-            tf2
-            tf2_geometry_msgs
-            tf2_ros
-            tf2_sensor_msgs
-            visualization_msgs
-            costmap_2d
-            pcl_ros
-        )
+# Default to C++17
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 
-find_package(PCL REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread)
-include_directories(
-    include
-    ${catkin_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# Default to Release build
+if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+endif()
+message( STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}" )
+
+set(lib_name ${PROJECT_NAME})
+
+# === Dependencies ===
+
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(nav2_costmap_2d REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
+set(dep_pkgs
+    rclcpp
+    nav2_costmap_2d
+    pluginlib
 )
 
-add_definitions(${EIGEN3_DEFINITIONS})
-
-# messages
-#add_message_files(
-#    DIRECTORY msg
-#    FILES
-#)
-
-generate_messages(
-    DEPENDENCIES
-        std_msgs
-        geometry_msgs
-        map_msgs
+# === Build ===
+add_library(${lib_name} SHARED
+            src/observation_buffer.cpp)
+include_directories(include)
+ament_target_dependencies(${lib_name}
+  rclcpp
+  rclcpp_components
+  sensor_msgs
+  geometry_msgs
+  std_msgs
 )
 
-# dynamic reconfigure
-generate_dynamic_reconfigure_options(
-  cfg/DepthCameraPlugin.cfg
-)
+# === Installation ===
+install(TARGETS ${lib_name}
+        DESTINATION lib)
 
-catkin_package(
-    INCLUDE_DIRS
-        include
-        ${EIGEN3_INCLUDE_DIRS}
-    LIBRARIES layers
-    CATKIN_DEPENDS
-        dynamic_reconfigure
-        geometry_msgs
-        map_msgs
-        message_filters
-        message_runtime
-        nav_msgs
-        pluginlib
-        roscpp
-        sensor_msgs
-        std_msgs
-        tf2_ros
-        visualization_msgs
-        costmap_2d
-        pcl_ros
-    DEPENDS
-        EIGEN3
-        Boost
-        PCL
-)
+#if(BUILD_TESTING)
+#  find_package(ament_lint_auto REQUIRED)
+#  ament_lint_auto_find_test_dependencies()
+#endif()
 
-add_library(costmap_depth_camera
-  plugins/depth_camera_obstacle_layer.cpp
-  src/observation_buffer.cpp
-)
-add_dependencies(costmap_depth_camera ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(costmap_depth_camera
-  ${catkin_LIBRARIES} ${Boost_LIBRARIES}
-)
+# === Ament work ===
 
+# Install the plugin
+#pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
+#ament_target_dependencies(${lib_name} ${dep_pkgs})
 
-install(TARGETS
-    costmap_depth_camera
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-)
+ament_package()
 
-install(FILES costmap_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  PATTERN ".svn" EXCLUDE
-)
