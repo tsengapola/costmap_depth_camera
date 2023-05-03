@@ -24,12 +24,16 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(nav2_costmap_2d REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(pluginlib REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -65,7 +69,9 @@ include_directories(
 )
 
 add_library(${lib_name} SHARED
-            src/observation_buffer.cpp)
+            src/observation.cpp
+            src/observation_buffer.cpp
+            plugins/depth_camera_obstacle_layer.cpp)
 
 target_link_libraries(${lib_name} "${cpp_typesupport_target}")
 target_compile_definitions(${lib_name} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
@@ -79,10 +85,18 @@ target_link_libraries(${lib_name}
 ament_target_dependencies(${lib_name}
   rclcpp
   rclcpp_components
+  rclcpp_lifecycle
+  nav2_costmap_2d
+  message_filters
   sensor_msgs
+  nav_msgs
   geometry_msgs
   std_msgs
   pcl_conversions
+  pcl_ros
+  tf2_ros
+  pluginlib
+  builtin_interfaces
 )
 
 # === Installation ===
@@ -97,8 +111,8 @@ install(TARGETS ${lib_name}
 # === Ament work ===
 
 # Install the plugin
-#pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
-#ament_target_dependencies(${lib_name} ${dep_pkgs})
+pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
+ament_target_dependencies(${lib_name} ${dep_pkgs})
 
 ament_package()
 

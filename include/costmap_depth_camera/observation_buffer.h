@@ -37,13 +37,22 @@
 #ifndef COSTMAP_DEPTH_CAMERA_OBSERVATION_BUFFER_H_
 #define COSTMAP_DEPTH_CAMERA_OBSERVATION_BUFFER_H_
 
+// STL
 #include <vector>
 #include <list>
 #include <string>
-//#include <ros/time.h>
-#include <costmap_depth_camera/observation.h>
+#include <chrono>
+#include <memory>
+
+// ROS
+#include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/buffer.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+
+// Observation
+#include <costmap_depth_camera/observation.h>
 
 // Thread support
 #include <boost/thread.hpp>
@@ -71,25 +80,28 @@ public:
    * @param  sensor_frame The frame of the origin of the sensor, can be left blank to be read from the messages
    * @param  tf_tolerance The amount of time to wait for a transform to be available when setting a new global frame
    */
-  ObservationBuffer(std::string topic_name, double observation_keep_time, double expected_update_rate,
-                    double min_obstacle_height, double max_obstacle_height, double obstacle_range,
-                    double raytrace_range, tf2_ros::Buffer& tf2_buffer, std::string global_frame,
-                    std::string sensor_frame, double tf_tolerance,
-                    double FOV_V, double FOV_W, double min_detect_distance, double max_detect_distance);
+  ObservationBuffer(std::string topic_name,
+                    double observation_keep_time,
+                    double expected_update_rate,
+                    double min_obstacle_height,
+                    double max_obstacle_height,
+                    double obstacle_range,
+                    double raytrace_range,
+                    tf2_ros::Buffer& tf2_buffer,
+                    std::string global_frame,
+                    std::string sensor_frame,
+                    double tf_tolerance,
+                    double FOV_V,
+                    double FOV_W,
+                    double min_detect_distance,
+                    double max_detect_distance,
+                    rclcpp::Clock::SharedPtr clock,
+                    rclcpp::Logger logger);
 
   /**
    * @brief  Destructor... cleans up
    */
   ~ObservationBuffer();
-
-  /**
-   * @brief Sets the global frame of an observation buffer. This will
-   * transform all the currently cached observations to the new global
-   * frame
-   * @param new_global_frame The name of the new global frame.
-   * @return True if the operation succeeds, false otherwise
-   */
-  bool setGlobalFrame(const std::string new_global_frame);
 
   /**
    * @brief  Transforms a PointCloud to the global frame and buffers it
@@ -140,16 +152,27 @@ private:
   tf2_ros::Buffer& tf2_buffer_;
   const rclcpp::Duration observation_keep_time_;
   const rclcpp::Duration expected_update_rate_;
-  ros::Time last_updated_;
+  rclcpp::Time last_updated_;
   std::string global_frame_;
   std::string sensor_frame_;
-  std::list<Observation> observation_list_;
   std::string topic_name_;
-  double min_obstacle_height_, max_obstacle_height_;
-  boost::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
-  double FOV_V_, FOV_W_, min_detect_distance_, max_detect_distance_;
-  double obstacle_range_, raytrace_range_;
+  double min_obstacle_height_;
+  double max_obstacle_height_;
+  double obstacle_range_;
+  double raytrace_range_;
   double tf_tolerance_;
+  double FOV_V_;
+  double FOV_W_;
+  double min_detect_distance_;
+  double max_detect_distance_;
+  rclcpp::Clock::SharedPtr clock_;
+  rclcpp::Logger logger_;
+  
+
+  std::list<Observation> observation_list_;
+  boost::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
+   
+  
 };
 }  // namespace costmap_depth_camera
 #endif  // COSTMAP_DEPTH_CAMERA_OBSERVATION_BUFFER_H_

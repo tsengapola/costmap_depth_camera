@@ -34,6 +34,187 @@
  *
  * Author: Apola
  *********************************************************************/
+#include <string>
+#include <unordered_map>
+#include <memory>
+#include <vector>
+#include <costmap_depth_camera/depth_camera_obstacle_layer.h>
+//#include <nav2_costmap_2d/costmap_math.hpp>
+#include <tf2_ros/message_filter.h>
+#include <pluginlib/class_list_macros.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+
+PLUGINLIB_EXPORT_CLASS(costmap_depth_camera::DepthCameraObstacleLayer, nav2_costmap_2d::Layer)
+using nav2_costmap_2d::NO_INFORMATION;
+using nav2_costmap_2d::LETHAL_OBSTACLE;
+using nav2_costmap_2d::FREE_SPACE;
+using costmap_depth_camera::ObservationBuffer;
+using costmap_depth_camera::Observation;
+
+namespace costmap_depth_camera
+{
+  DepthCameraObstacleLayer::DepthCameraObstacleLayer(void)
+  : last_min_x_(-std::numeric_limits<float>::max())
+  , last_min_y_(-std::numeric_limits<float>::max())
+  , last_max_x_(std::numeric_limits<float>::max())
+  , last_max_y_(std::numeric_limits<float>::max())
+  {
+    //costmap_ = NULL;
+  }
+
+  DepthCameraObstacleLayer::~DepthCameraObstacleLayer(void)
+  {
+
+  }
+
+  void DepthCameraObstacleLayer::onInitialize(void)
+  {
+    RCLCPP_INFO(logger_, "%s being initialized as DepthCameraObstacleLayer!", getName().c_str());
+    auto node = node_.lock(); 
+    declareParameter("enabled", rclcpp::ParameterValue(true));
+    node->get_parameter(name_ + "." + "enabled", enabled_);
+
+    need_recalculation_ = false;
+    current_ = true;
+  }
+
+  void DepthCameraObstacleLayer::updateBounds(double robot_x, double robot_y, double robot_yaw, double* min_x,
+                                              double* min_y, double* max_x, double* max_y)
+  {
+    if (need_recalculation_) 
+    {
+      last_min_x_ = *min_x;
+      last_min_y_ = *min_y;
+      last_max_x_ = *max_x;
+      last_max_y_ = *max_y;
+      // For some reason when I make these -<double>::max() it does not
+      // work with Costmap2D::worldToMapEnforceBounds(), so I'm using
+      // -<float>::max() instead.
+      *min_x = -std::numeric_limits<float>::max();
+      *min_y = -std::numeric_limits<float>::max();
+      *max_x = std::numeric_limits<float>::max();
+      *max_y = std::numeric_limits<float>::max();
+      need_recalculation_ = false;
+    } 
+    else 
+    {
+      double tmp_min_x = last_min_x_;
+      double tmp_min_y = last_min_y_;
+      double tmp_max_x = last_max_x_;
+      double tmp_max_y = last_max_y_;
+      last_min_x_ = *min_x;
+      last_min_y_ = *min_y;
+      last_max_x_ = *max_x;
+      last_max_y_ = *max_y;
+      *min_x = std::min(tmp_min_x, *min_x);
+      *min_y = std::min(tmp_min_y, *min_y);
+      *max_x = std::max(tmp_max_x, *max_x);
+      *max_y = std::max(tmp_max_y, *max_y);
+    }
+
+  }
+
+  void DepthCameraObstacleLayer::onFootprintChanged()
+  {
+    need_recalculation_ = true;
+
+    RCLCPP_DEBUG(logger_, "GradientLayer::onFootprintChanged(): num footprint points: %lu",layered_costmap_->getFootprint().size());
+  }
+
+  void DepthCameraObstacleLayer::updateCosts(nav2_costmap_2d::Costmap2D& master_grid,
+                                             int min_i, int min_j, int max_i, int max_j)
+  {
+     if (!enabled_)
+     {
+      return;
+     }
+    unsigned char * master_array = master_grid.getCharMap();
+    unsigned int size_x = master_grid.getSizeInCellsX(), size_y = master_grid.getSizeInCellsY();
+    min_i = std::max(0, min_i);
+    min_j = std::max(0, min_j);
+    max_i = std::min(static_cast<int>(size_x), max_i);
+    max_j = std::min(static_cast<int>(size_y), max_j);
+
+    // Simply computing one-by-one cost per each cell
+    int gradient_index;
+    for (int j = min_j; j < max_j; j++) 
+    {
+      // Reset gradient_index each time when reaching the end of re-calculated window
+      // by OY axis.
+      gradient_index = 0;
+      for (int i = min_i; i < max_i; i++) 
+      {
+        int index = master_grid.getIndex(i, j);
+        // setting the gradient cost
+        unsigned char cost = (LETHAL_OBSTACLE - gradient_index*GRADIENT_FACTOR)%255;
+        if (gradient_index <= GRADIENT_SIZE) 
+        {
+          gradient_index++;
+        } 
+        else 
+        {
+          gradient_index = 0;
+        }
+        master_array[index] = cost;
+      }
+    }  
+  }
+
+  // void DepthCameraObstacleLayer::activate()
+  // {
+
+  // }
+  
+  // void DepthCameraObstacleLayer::deactivate()
+  // {
+
+  // }
+
+  void DepthCameraObstacleLayer::reset(void)
+  {
+    return;
+  }
+
+  // void DepthCameraObstacleLayer::pointCloud2Callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& message,
+  //                                                    const boost::shared_ptr<ObservationBuffer>& buffer)
+  // {
+
+  // }
+
+  // void DepthCameraObstacleLayer::addStaticObservation(costmap_depth_camera::Observation& obs,
+  //                                                     bool marking,
+  //                                                     bool clearing)
+  // {
+
+  // }
+
+  // void DepthCameraObstacleLayer::clearStaticObservations(bool marking, bool clearing)
+  // {
+
+  // }
+
+  // bool DepthCameraObstacleLayer::getMarkingObservations(std::vector<Observation>& marking_observations) const
+  // {
+  //   return 0;
+  // }
+
+  // bool DepthCameraObstacleLayer::getClearingObservations(std::vector<Observation>& clearing_observations) const
+  // {
+  //   return 0;
+  // }
+
+  // void DepthCameraObstacleLayer::updateFootprint(double robot_x, double robot_y, double robot_yaw, double* min_x, double* min_y,
+  //                                                double* max_x, double* max_y)
+  // {
+
+  // }
+
+}  // namespace costmap_depth_camera
+
+
+
+
+#if(0)
 #include <costmap_depth_camera/depth_camera_obstacle_layer.h>
 #include <costmap_2d/costmap_math.h>
 #include <tf2_ros/message_filter.h>
@@ -780,3 +961,5 @@ void DepthCameraObstacleLayer::reset()
 }
 
 }  // namespace costmap_depth_camera
+
+#endif
