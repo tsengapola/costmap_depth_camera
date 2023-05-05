@@ -34,6 +34,9 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_sensor_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread)
 
@@ -97,11 +100,17 @@ ament_target_dependencies(${lib_name}
   tf2_ros
   pluginlib
   builtin_interfaces
+  tf2_geometry_msgs
+  tf2_sensor_msgs
+  builtin_interfaces
 )
 
 # === Installation ===
 install(TARGETS ${lib_name}
-        DESTINATION lib)
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+)
 
 #if(BUILD_TESTING)
 #  find_package(ament_lint_auto REQUIRED)
@@ -113,6 +122,10 @@ install(TARGETS ${lib_name}
 # Install the plugin
 pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
 ament_target_dependencies(${lib_name} ${dep_pkgs})
-
+ament_export_include_directories(include)
+ament_export_libraries(${PROJECT_NAME})
 ament_package()
+
+#ament_auto_package(INSTALL_TO_SHARE launch)
+
 

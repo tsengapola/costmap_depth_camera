@@ -39,12 +39,9 @@
 #include <memory>
 #include <vector>
 #include <costmap_depth_camera/depth_camera_obstacle_layer.h>
-//#include <nav2_costmap_2d/costmap_math.hpp>
 #include <tf2_ros/message_filter.h>
-#include <pluginlib/class_list_macros.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
-PLUGINLIB_EXPORT_CLASS(costmap_depth_camera::DepthCameraObstacleLayer, nav2_costmap_2d::Layer)
 using nav2_costmap_2d::NO_INFORMATION;
 using nav2_costmap_2d::LETHAL_OBSTACLE;
 using nav2_costmap_2d::FREE_SPACE;
@@ -842,7 +839,7 @@ namespace costmap_depth_camera
                                                 double robot_x, double robot_y, double* min_x, 
                                                 double* min_y, double* max_x, double* max_y)
   {
-    geometry_msgs::msg::PointStamped pt;
+    geometry_msgs::msg::Point pt;
 
     unsigned int mx, my;
     double wx,wy;
@@ -855,13 +852,13 @@ namespace costmap_depth_camera
 
     for(int i=0;i<cluster_cloud->points.size();i++)
     {
-      pt.point.x = cluster_cloud->points[i].x;
-      pt.point.y = cluster_cloud->points[i].y;
-      pt.point.z = cluster_cloud->points[i].z;
+      pt.x = cluster_cloud->points[i].x;
+      pt.y = cluster_cloud->points[i].y;
+      pt.z = cluster_cloud->points[i].z;
       //tf_->transformPoint (global_frame_, pt, tf_pt);
 
-      wx = pt.point.x;
-      wy = pt.point.y;
+      wx = pt.x;
+      wy = pt.y;
 
       pcl::PointXYZI searchPoint;
       searchPoint.x = wx;
@@ -952,3 +949,6 @@ namespace costmap_depth_camera
 
 }  // namespace costmap_depth_camera
 
+// Register the macro for this layer
+#include "pluginlib/class_list_macros.hpp"
+PLUGINLIB_EXPORT_CLASS(costmap_depth_camera::DepthCameraObstacleLayer, nav2_costmap_2d::Layer)
