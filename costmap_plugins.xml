@@ -1,5 +1,0 @@
-<library path="costmap_depth_camera">
-  <class name="costmap_depth_camera::DepthCameraObstacleLayer" type="costmap_depth_camera::DepthCameraObstacleLayer" base_class_type="nav2_costmap_2d::Layer">
-    <description>The plugin subscribes pointcloud to mark and clean.</description>
-  </class>
-</library>
