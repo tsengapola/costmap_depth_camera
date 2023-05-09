@@ -34,12 +34,14 @@
  *
  * Author: Apola
  *********************************************************************/
+#ifndef COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
+#define COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
+
 #include <costmap_depth_camera/observation_buffer.h>
-
-
 namespace costmap_depth_camera
 {
-  class FrustumUtils{
+  class FrustumUtils
+  {
     public:
 
       FrustumUtils(std::vector<costmap_depth_camera::Observation>* observations);
@@ -61,137 +63,9 @@ namespace costmap_depth_camera
       bool isInsideFRUSTUMs(pcl::PointXYZI testPoint);
       
     private:
-
       std::vector<costmap_depth_camera::Observation>* observations_;
-
-
-  };
+      rclcpp::Logger logger_;
   
-  FrustumUtils::FrustumUtils(std::vector<costmap_depth_camera::Observation>* observations):observations_(observations)
-  {
-  }
-
-  FrustumUtils::~FrustumUtils()
-  {
-  }
-
-  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint)
-  {
-    for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
-    {
-      costmap_depth_camera::Observation& obs = *it;  
-      for(auto it_plane=obs.frustum_plane_equation_.begin();it_plane!=obs.frustum_plane_equation_.end();it_plane++){
-        float a = (*it_plane)[0];
-        float b = (*it_plane)[1];
-        float c = (*it_plane)[2];
-        float d = (*it_plane)[3];
-        float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
-        dis = dis/sqrt(a*a+b*b+c*c);
-        float dis2rej = 0.12;
-        if(dis<=dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_+0.5){
-          //find one frustum such that no attachment and inside frumstum
-          for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner){
-            if(it==it_inner){
-              //ROS_WARN("Same frustum.");
-              continue;
-            }
-            else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
-              return false;
-          }
-          return true;
-        }
-      } 
-    }
-    return false;
-  }
-  bool FrustumUtils::isInsideFRUSTUMwoAttach(costmap_depth_camera::Observation& observation, pcl::PointXYZI testPoint)
-  {
-    for(auto it=observation.frustum_plane_equation_.begin();it!=observation.frustum_plane_equation_.end();it++){
-      float a = (*it)[0];
-      float b = (*it)[1];
-      float c = (*it)[2];
-      float d = (*it)[3];
-      float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
-      dis = dis/sqrt(a*a+b*b+c*c);
-      float dis2rej = 0.12;
-      if(dis<=dis2rej && hypot(testPoint.x-observation.origin_.x, testPoint.y-observation.origin_.y)<observation.max_detect_distance_+0.5){
-        return false;
-      }
-    } 
-
-    pcl::PointXYZ testPoint_XYZ;
-    testPoint_XYZ.x = testPoint.x;
-    testPoint_XYZ.y = testPoint.y;
-    testPoint_XYZ.z = testPoint.z;
-
-    pcl::PointXYZ vec_form_pc2corner;
-    double test;
-    for(int i=0;i<6;i++){
-      test = 0.0;
-      if(i<3){
-        vec_form_pc2corner = observation.getVec(observation.BRNear_,testPoint_XYZ);
-        //ROS_DEBUG("%d, %.2f, %.2f, %.2f",i, vec_form_pc2corner.point.x,vec_form_pc2corner.point.y,vec_form_pc2corner.point.z);
-        test = vec_form_pc2corner.x*observation.frustum_normal_->points[i].x + vec_form_pc2corner.y*observation.frustum_normal_->points[i].y +vec_form_pc2corner.z*observation.frustum_normal_->points[i].z;
-        if(test<0){
-          //ROS_DEBUG("Reject by %d plane.", i);
-          return false;
-        }
-      }
-      else{
-        vec_form_pc2corner = observation.getVec(observation.TLFar_,testPoint_XYZ);
-        //ROS_DEBUG("%d: %.2f, %.2f, %.2f",i, vec_form_pc2corner.point.x,vec_form_pc2corner.point.y,vec_form_pc2corner.point.z);
-        test = vec_form_pc2corner.x*observation.frustum_normal_->points[i].x + vec_form_pc2corner.y*observation.frustum_normal_->points[i].y +vec_form_pc2corner.z*observation.frustum_normal_->points[i].z;
-        if(test<0){
-          //ROS_DEBUG("Reject by %d plane.", i);
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  bool FrustumUtils::isInsideFRUSTUMs(pcl::PointXYZI testPoint)
-  {
-    pcl::PointXYZ testPoint_XYZ;
-    testPoint_XYZ.x = testPoint.x;
-    testPoint_XYZ.y = testPoint.y;
-    testPoint_XYZ.z = testPoint.z;
-    
-    for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
-    {
-      
-      bool one_frustum_test = true; //if we test the point in one of the frustum, then we can exit
-      costmap_depth_camera::Observation& obs = *it;
-      pcl::PointXYZ vec_form_pc2corner;
-      double test;
-      for(int i=0;i<6;i++){
-        test = 0.0;
-        if(i<3){
-          vec_form_pc2corner = obs.getVec(obs.BRNear_,testPoint_XYZ);
-          //ROS_DEBUG("%d, %.2f, %.2f, %.2f",i, vec_form_pc2corner.point.x,vec_form_pc2corner.point.y,vec_form_pc2corner.point.z);
-          test = vec_form_pc2corner.x*obs.frustum_normal_->points[i].x + vec_form_pc2corner.y*obs.frustum_normal_->points[i].y +vec_form_pc2corner.z*obs.frustum_normal_->points[i].z;
-          if(test<0){
-            //ROS_DEBUG("Reject by %d plane.", i);
-            one_frustum_test = false;
-            break;
-          }
-        }
-        else{
-          vec_form_pc2corner = obs.getVec(obs.TLFar_,testPoint_XYZ);
-          //ROS_DEBUG("%d: %.2f, %.2f, %.2f",i, vec_form_pc2corner.point.x,vec_form_pc2corner.point.y,vec_form_pc2corner.point.z);
-          test = vec_form_pc2corner.x*obs.frustum_normal_->points[i].x + vec_form_pc2corner.y*obs.frustum_normal_->points[i].y +vec_form_pc2corner.z*obs.frustum_normal_->points[i].z;
-          if(test<0){
-            //ROS_DEBUG("Reject by %d plane.", i);
-            one_frustum_test = false;
-            break;
-          }
-        }
-      }
-      if(one_frustum_test)
-        return true;
-    }
-
-    return false;
-  }
-  
-} // namespace costmap_depth_camera
+  };    /// class FrustumUtils
+}       /// namespace costmap_depth_camera
+#endif  /// COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_ 

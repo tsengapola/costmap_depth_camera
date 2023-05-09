@@ -90,16 +90,28 @@ ObservationBuffer::~ObservationBuffer()
 
 void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
 {
-  //RCLCPP_INFO(logger_, "+++++++++++++++++ Observation buffer ");
-
-
   // create a new observation on the list to be populated
   observation_list_.push_front(Observation());
 
   // check whether the origin frame has been set explicitly or whether we should get it from the cloud
   //string origin_frame = sensor_frame_ == "" ? cloud.header.frame_id : sensor_frame_;
-  string origin_frame = cloud.header.frame_id;
   
+  /// Caution!!! The follwing is NOT correct becauese the header has optical frame and we need the camera link
+  /// For multiple cameras, use separate topics or may be a separate config.yaml file.
+  //string origin_frame = cloud.header.frame_id;
+
+  /// ToDo: This should be fixed. Should not be hardcoded!!!
+  string origin_frame;
+  if(cloud.header.frame_id == "camera_optical_left")
+  {
+    origin_frame = "camera_link_left"; 
+  }
+
+  if(cloud.header.frame_id == "camera_optical_right")
+  {
+    origin_frame = "camera_link_right";
+  }
+
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ global frame: " << global_frame_.c_str());
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ local frame: " << origin_frame.c_str());
 

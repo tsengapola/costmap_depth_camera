@@ -93,6 +93,7 @@ include_directories(
 
 add_library(${library_name} SHARED
             src/observation.cpp
+            src/frustum_utils.cpp
             src/observation_buffer.cpp
             plugins/depth_camera_obstacle_layer.cpp
 )
@@ -129,22 +130,22 @@ install(FILES costmap_plugins.xml
 )
 
 # Install launch
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}
-)
+# install(DIRECTORY
+#   launch
+#   DESTINATION share/${PROJECT_NAME}
+# )
 
 # Install params
-install(DIRECTORY
-  params
-  DESTINATION share/${PROJECT_NAME}
-)
+# install(DIRECTORY
+#   params
+#   DESTINATION share/${PROJECT_NAME}
+# )
 
 # Install rviz
-install(DIRECTORY
-  rviz
-  DESTINATION share/${PROJECT_NAME}
-)
+# install(DIRECTORY
+#   rviz
+#   DESTINATION share/${PROJECT_NAME}
+# )
 
 #ament_export_dependencies(rosidl_default_runtime)
 pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)

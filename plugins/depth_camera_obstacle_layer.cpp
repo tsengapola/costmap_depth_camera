@@ -39,6 +39,7 @@
 #include <memory>
 #include <vector>
 #include <costmap_depth_camera/depth_camera_obstacle_layer.h>
+#include <costmap_depth_camera/frustum_utils.hpp>
 #include <tf2_ros/message_filter.h>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
@@ -312,7 +313,10 @@ namespace costmap_depth_camera
     }
 
     useExtraBounds(min_x, min_y, max_x, max_y);
-      
+    
+    /// Example: Spatio-Temporal-VoxelLayer::UpdateROSCost()
+    Costmap2D::resetMaps(); /// See again in Navigation 2 layered costmap. They donot reset it!! 
+
     //RCLCPP_INFO(logger_,"ec distance: %.2f",ec_seg_distance_);
     //RCLCPP_INFO(logger_,"ec seg min size: %.d",ec_cluster_min_size_);
     //RCLCPP_INFO(logger_,"voxel resolution: %.2f",voxel_resolution_);
@@ -330,8 +334,8 @@ namespace costmap_depth_camera
     /// update the global current status
     current_ = current;
 
-    ///ToDO: publish frustum for visualization
-    //pubFrustum(observations); 
+    ///publish frustum points for visualization
+    pubFrustum(observations); 
 
     ///combine all pointcloud from all observations
     pcl::PointCloud<pcl::PointXYZI>::Ptr combined_observations(new pcl::PointCloud<pcl::PointXYZI>);
@@ -398,6 +402,7 @@ namespace costmap_depth_camera
       }
       
     }
+    
     updateFootprint(robot_x, robot_y, robot_yaw, min_x, min_y, max_x, max_y);
   }
 
@@ -405,12 +410,14 @@ namespace costmap_depth_camera
   void DepthCameraObstacleLayer::updateCosts(nav2_costmap_2d::Costmap2D& master_grid,
                                              int min_i, int min_j, int max_i, int max_j)
   {
-    /// RCLCPP_INFO_STREAM(logger_,"++++++++ UpdateCosts enabled: " << enabled_);
 
+    //RCLCPP_INFO_STREAM(logger_,"[updateCosts] enable: " << enabled_);
+    
     if (!enabled_)
     {
       return;
     }
+
         
     unsigned char* master_array = master_grid.getCharMap();
     unsigned int mx, my; 
@@ -425,7 +432,8 @@ namespace costmap_depth_camera
         if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty())
         {
           unsigned int index = getIndex(mx,my);
-          master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+          //master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+          costmap_[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]);
           ++it_3d_map;
         }
         else
@@ -440,9 +448,12 @@ namespace costmap_depth_camera
       for(auto it_3d_map=pc_3d_map_global_.begin();it_3d_map!=pc_3d_map_global_.end();)
       {
         intIndexToWorld(wx, wy, (*it_3d_map).first.first, (*it_3d_map).first.second, layered_costmap_->getCostmap()->getResolution());
+        
+        //RCLCPP_INFO_STREAM(logger_,"grid resolution: " << layered_costmap_->getCostmap()->getResolution() << ", (wx,wy): (" << wx << "," << wy << ")" );
+
         if (!worldToMap(wx, wy, mx, my))
         {
-          RCLCPP_DEBUG(logger_,"Computing map coords failed");
+          RCLCPP_INFO(logger_,"[updateCosts] Computing map coords failed");
           ++it_3d_map;
           continue;
         }   
@@ -451,7 +462,8 @@ namespace costmap_depth_camera
         if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty())
         {
           unsigned int index = getIndex(mx,my);
-          master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+          //master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
+          costmap_[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]);
           ++it_3d_map;
         }
         else
@@ -646,9 +658,6 @@ namespace costmap_depth_camera
       }
       cnt++; 
     }
-    
-    RCLCPP_INFO(logger_, "++++++++++ Frustum message publisher: ");
-    /// ToDo: Confirm message publisher
     frustum_msg_ = std::make_shared<sensor_msgs::msg::PointCloud2>();
     pcl::toROSMsg(*pub_frustum, *frustum_msg_);
     frustum_msg_->header.frame_id = global_frame_;
@@ -701,6 +710,9 @@ namespace costmap_depth_camera
         bypass_clearing = true;
       }
     }
+
+    //RCLCPP_WARN_STREAM(logger_,"Global map points size: " << pc_3d_map_global_.size());
+
     
     bool is_marking_sub = marking_pub_->get_subscription_count()>0;
 
@@ -722,6 +734,7 @@ namespace costmap_depth_camera
         /// if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
         if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub)
         {
+          //RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
           continue;
         }
 
@@ -746,12 +759,12 @@ namespace costmap_depth_camera
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
             ///Nothing is detected, clear all markings.
-            RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
+            //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
-            RCLCPP_WARN(logger_,"CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+            //RCLCPP_WARN(logger_,"CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
@@ -760,7 +773,7 @@ namespace costmap_depth_camera
           {
             if(kdtree_gbl.radiusSearch (searchPoint, check_radius_, pointIdxRadiusSearch, pointRadiusSquaredDistance)<number_clearing_threshold_)
             {
-              RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+              //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
             }
           } 
@@ -784,7 +797,7 @@ namespace costmap_depth_camera
         ///if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
         if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub)
         {
-          ///RCLCPP_WARN_STREAM(logger_,"[ClearMarkingbyKdtree] Global frame to make: "<< use_global_frame_to_mark_);
+          RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
           continue;
         }
 
@@ -796,6 +809,9 @@ namespace costmap_depth_camera
           searchPoint.y = wy;
           searchPoint.z = (*it).first*voxel_resolution_;
           searchPoint.intensity = (*it).second;
+
+          //RCLCPP_WARN_STREAM(logger_,"search (x,y,z): (" << searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ")");
+
 
           if(is_marking_sub)
           {
@@ -809,13 +825,13 @@ namespace costmap_depth_camera
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
-            ///Nothing is detected, clear all markings.*/
-            RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
+            ///Nothing is detected, clear all markings.
+            //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
-            RCLCPP_WARN(logger_,"CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+            //RCLCPP_WARN(logger_,"CFOV Erase : %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
@@ -824,7 +840,7 @@ namespace costmap_depth_camera
           {
             if(kdtree_gbl.radiusSearch (searchPoint, check_radius_, pointIdxRadiusSearch, pointRadiusSquaredDistance)<number_clearing_threshold_)
             {
-              RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+              //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
             }
           }
@@ -837,8 +853,6 @@ namespace costmap_depth_camera
     }
     if(is_marking_sub)
     {
-      RCLCPP_INFO(logger_, "++++++++++ Marking msg publisher: ");
-      /// ToDo: Confirm the message publish
       marking_msg_ = std::make_shared<sensor_msgs::msg::PointCloud2>();
       pcl::toROSMsg(*marking, *marking_msg_);
       marking_msg_->header.frame_id = global_frame_;
@@ -881,6 +895,8 @@ namespace costmap_depth_camera
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
       bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);
 
+      ///RCLCPP_WARN_STREAM(logger_, "in Frustum: "<< is_in_FRUSTUM << ", is attach frustum: " << is_attach_FRUSTUM);
+
       ///These are robust marking conditions, attachment testing usually causing boundary condition.*/
       if(!is_in_FRUSTUM || is_attach_FRUSTUM)
       {
@@ -891,7 +907,7 @@ namespace costmap_depth_camera
       {
         if (!worldToMap(wx, wy, mx, my))
         {
-          RCLCPP_DEBUG(logger_,"Computing map coords failed");
+          RCLCPP_DEBUG(logger_,"[ProcessCluster] Computing map coords failed");
           continue;
         }    
       
