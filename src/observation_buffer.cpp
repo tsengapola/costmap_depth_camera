@@ -193,6 +193,9 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
+
+    // ToDo: set z of tf_stamped=0 before do transform to mitigiate the fixposition height issues.
+
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
 

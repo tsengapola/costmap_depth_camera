@@ -185,10 +185,10 @@ namespace costmap_depth_camera
       declareParameter(source + "." + "marking", rclcpp::ParameterValue(true));
       node->get_parameter(name_ + "." + source + "." + "marking", marking);
 
-      declareParameter(source + "." + "FOV_V", rclcpp::ParameterValue(1.0));
+      declareParameter(source + "." + "FOV_V", rclcpp::ParameterValue(1.0)); // radians
       node->get_parameter(name_ + "." + source + "." + "FOV_V", FOV_V);
 
-      declareParameter(source + "." + "FOV_W", rclcpp::ParameterValue(1.5));
+      declareParameter(source + "." + "FOV_W", rclcpp::ParameterValue(1.5)); // radians
       node->get_parameter(name_ + "." + source + "." + "FOV_W", FOV_W);
 
       declareParameter(source + "." + "min_detect_distance", rclcpp::ParameterValue(0.15));
