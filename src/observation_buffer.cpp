@@ -94,83 +94,34 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
   observation_list_.push_front(Observation());
 
   // check whether the origin frame has been set explicitly or whether we should get it from the cloud
-  //string origin_frame = sensor_frame_ == "" ? cloud.header.frame_id : sensor_frame_;
+  string origin_frame = sensor_frame_ == "" ? cloud.header.frame_id : sensor_frame_;
   
-  /// Caution!!! The follwing is NOT correct becauese the header has optical frame and we need the camera link
-  /// For multiple cameras, use separate topics or may be a separate config.yaml file.
-  //string origin_frame = cloud.header.frame_id;
-
-  /// ToDo: This should be fixed. Should not be hardcoded!!!
-  string origin_frame;
-  if(cloud.header.frame_id == "camera_optical_left")
+  if(sensor_frame_ == "")
   {
-    origin_frame = "camera_link_left"; 
+    RCLCPP_WARN_STREAM(logger_,"Warning: Sensor frame is not provided in yaml file. Using pointcloud header frame id");
   }
-
-  if(cloud.header.frame_id == "camera_optical_right")
-  {
-    origin_frame = "camera_link_right";
-  }
-
+  
+  /// For debugging only
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ global frame: " << global_frame_.c_str());
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ local frame: " << origin_frame.c_str());
 
   try
   {
     // given these observations come from sensors... we'll need to store the origin pt of the sensor
-    
-    /*
-    geometry_msgs::msg::PoseStamped local_origin, global_origin;
-    local_origin.header.stamp = cloud.header.stamp;
-    local_origin.header.frame_id = origin_frame;
-    local_origin.pose.position.x = 0;
-    local_origin.pose.position.y = 0;
-    local_origin.pose.position.z = 0;
-    local_origin.pose.orientation.x = 0;
-    local_origin.pose.orientation.y = 0;
-    local_origin.pose.orientation.z = 0;
-    local_origin.pose.orientation.w = 1;
-    */
-
-    //auto transform_tolerance = tf2::durationFromSec(0.5);
-
-    /*
-    if(tf2_buffer_.canTransform(global_frame_, local_origin.header.frame_id, tf2_ros::fromMsg(local_origin.header.stamp), tf2::durationFromSec(0.5)))
-    {
-      RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ global frame: " << global_frame_.c_str());
-      RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ local frame: " << local_origin.header.frame_id);
-      //tf2_buffer_.transform(local_origin, global_origin, global_frame_);
-      T_S_C_msg = tf2_buffer_.lookupTransform(origin_frame, global_frame_, tf2::TimePointZero, transform_tolerance);
-    }
-    else
-    {
-      RCLCPP_WARN(logger_, "+++++++++++++++++ Couldnot find the transformation ");
-    }
-    */
-
-    /*
-    tf2_buffer_.transform(local_origin, global_origin, global_frame_);
-    tf2::convert(global_origin.point, observation_list_.front().origin_);
-    */
-
     geometry_msgs::msg::TransformStamped T_S_C_msg;
     T_S_C_msg = tf2_buffer_.lookupTransform(origin_frame, global_frame_, tf2::TimePointZero, tf2::durationFromSec(0.5));
     observation_list_.front().origin_.x = T_S_C_msg.transform.translation.x;
     observation_list_.front().origin_.y = T_S_C_msg.transform.translation.y;
     observation_list_.front().origin_.z = T_S_C_msg.transform.translation.z;
     
-    /*
-    Update camera parameters
-    */
+    /// Update camera parameters
     observation_list_.front().min_detect_distance_ = min_detect_distance_;
     observation_list_.front().max_detect_distance_ = max_detect_distance_;
     observation_list_.front().FOV_W_ = FOV_W_;
     observation_list_.front().FOV_V_ = FOV_V_;
     
-    /*
-    Find frustum vertex (8 points) and transform it to global.
-    !!! Frustum vertex is usually based on camera_link frame (realsense).
-    */
+    /// Find frustum vertex (8 points) and transform it to global.
+    /// !!! Frustum vertex is usually based on camera_link frame (realsense).
     observation_list_.front().findFrustumVertex();
     
     pcl_conversions::toPCL(cloud.header.stamp, observation_list_.front().frustum_->header.stamp);
@@ -181,23 +132,20 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     
     observation_list_.front().frustum_->header.frame_id = global_frame_;
     
-    /*
-    Find frustum normal and plane, note that the planes/normals are in global frame
-    !!! findFrustumNormal() will assign BRNear_&&TLFar_  which are both in global frame
-    */
+    /// Find frustum normal and plane, note that the planes/normals are in global frame
+    /// !!! findFrustumNormal() will assign BRNear_&&TLFar_  which are both in global frame
     observation_list_.front().findFrustumNormal();
     observation_list_.front().findFrustumPlane();
     
-    // transform the point cloud, from camera_depth_optical_frame
+    /// Transform the point cloud, from camera_depth_optical_frame
     
     point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
-
-    // ToDo: set z of tf_stamped=0 before do transform to mitigiate the fixposition height issues.
+    //RCLCPP_WARN_STREAM(logger_,"+++++ (x,y,z):" << tf_stamped.transform.translation.x << "," << tf_stamped.transform.translation.y << "," << tf_stamped.transform.translation.z);
+    tf_stamped.transform.translation.z=0.0;
 
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
-
 
     //sensor_msgs::msg::PointCloud2 global_frame_cloud;
     //tf2_buffer_.transform(cloud, global_frame_cloud, global_frame_);
@@ -205,7 +153,6 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     //global_frame_cloud.header.stamp = cloud.header.stamp;
     // copy over the points that are within our height bounds
     
-
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_z(*global_frame_cloud, "z");
