@@ -141,6 +141,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
+    //tf_stamped.transform.translation.z = 0.70; /// Remove this !!! This will not change the frustum and therefore wont help.
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
@@ -148,6 +149,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     sensor_msgs::PointCloud2ConstIterator<float> iter_z(*global_frame_cloud, "z");
     
     /// Adaptive update of maximum/minimum obstacle height
+    /*
     rclcpp::Time t_now = cloud.header.stamp;
     if(!adapt_height_init_)
     {
@@ -165,8 +167,8 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
       RCLCPP_ERROR(logger_, "Something wrong to find transform from global frame to baselink: %s", ex.what());
     }
 
-    min_obstacle_height_ = 0.2 + global_to_baselink.transform.translation.z;
-    max_obstacle_height_ = 2.0 + global_to_baselink.transform.translation.z;
+    //min_obstacle_height_ = 0.2 + global_to_baselink.transform.translation.z;
+    //max_obstacle_height_ = 2.0 + global_to_baselink.transform.translation.z;
 
     if(t_now.nanoseconds()-adapt_height_cout_prev_time_.nanoseconds()>adpat_height_cout_time_nsec_)
     {
@@ -175,6 +177,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
                                  " Min height: " << min_obstacle_height_ <<
                                  " Max height: " << max_obstacle_height_);
     }
+    */
 
 
     for (; iter_x !=iter_x.end(); ++iter_x, ++iter_y, ++iter_z)

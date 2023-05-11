@@ -453,7 +453,7 @@ namespace costmap_depth_camera
 
         if (!worldToMap(wx, wy, mx, my))
         {
-          RCLCPP_INFO(logger_,"[updateCosts] Computing map coords failed");
+          //RCLCPP_INFO(logger_,"[updateCosts] Computing map coords failed");
           ++it_3d_map;
           continue;
         }   
@@ -777,10 +777,10 @@ namespace costmap_depth_camera
               (*it_3d_map).second.erase(it);
             }
           } 
-          else 
-          {
-            RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-          }
+          // else 
+          // {
+          //   RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+          // }
         }
       }
     }
@@ -844,10 +844,10 @@ namespace costmap_depth_camera
               (*it_3d_map).second.erase(it);
             }
           }
-          else 
-          {
-            RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-          }
+          // else 
+          // {
+          //   RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+          // }
         }
       }    
     }
