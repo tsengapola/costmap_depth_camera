@@ -38,7 +38,6 @@
 #include <costmap_depth_camera/observation_buffer.h>
 #include <pcl_ros/transforms.hpp>
 
-
 using namespace std;
 using namespace tf2;
 
@@ -142,26 +141,45 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
-    //RCLCPP_WARN_STREAM(logger_,"+++++ (x,y,z):" << tf_stamped.transform.translation.x << "," << tf_stamped.transform.translation.y << "," << tf_stamped.transform.translation.z);
-    //tf_stamped.transform.translation.z=0.0;
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
-    //sensor_msgs::msg::PointCloud2 global_frame_cloud;
-    //tf2_buffer_.transform(cloud, global_frame_cloud, global_frame_);
-
-    //global_frame_cloud.header.stamp = cloud.header.stamp;
-    // copy over the points that are within our height bounds
-    
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_z(*global_frame_cloud, "z");
     
-    
+    /// Adaptive update of maximum/minimum obstacle height
+    rclcpp::Time t_now = cloud.header.stamp;
+    if(!adapt_height_init_)
+    {
+      adapt_height_cout_prev_time_ = t_now;
+      adapt_height_init_ = true;
+    }
+
+    std::string baselink_frame = "base_link";
+    geometry_msgs::msg::TransformStamped global_to_baselink;
+    try
+    {
+      global_to_baselink = tf2_buffer_.lookupTransform(global_frame_, baselink_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
+    } catch (tf2::TransformException & ex)
+    {
+      RCLCPP_ERROR(logger_, "Something wrong to find transform from global frame to baselink: %s", ex.what());
+    }
+
+    min_obstacle_height_ = 0.2 + global_to_baselink.transform.translation.z;
+    max_obstacle_height_ = 2.0 + global_to_baselink.transform.translation.z;
+
+    if(t_now.nanoseconds()-adapt_height_cout_prev_time_.nanoseconds()>adpat_height_cout_time_nsec_)
+    {
+      adapt_height_cout_prev_time_ = t_now;
+      RCLCPP_INFO_STREAM(logger_," Global to baselink height: " <<  global_to_baselink.transform.translation.z <<
+                                 " Min height: " << min_obstacle_height_ <<
+                                 " Max height: " << max_obstacle_height_);
+    }
+
 
     for (; iter_x !=iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
     {
-      if ((*iter_z) <= max_obstacle_height_
-          && (*iter_z) >= min_obstacle_height_)
+      if ((*iter_z) <= max_obstacle_height_ && (*iter_z) >= min_obstacle_height_)
       {
         pcl::PointXYZI tmp_pt;
         tmp_pt.x = *iter_x;

@@ -168,10 +168,16 @@ private:
   double max_detect_distance_;
   rclcpp::Clock::SharedPtr clock_;
   rclcpp::Logger logger_;
-  
+
 
   std::list<Observation> observation_list_;
   boost::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
+
+  /// Adaotive height change
+  rclcpp::Time adapt_height_cout_prev_time_;
+  unsigned long adpat_height_cout_time_nsec_ = 10e9;
+  bool adapt_height_init_ = false;
+
    
   
 };
