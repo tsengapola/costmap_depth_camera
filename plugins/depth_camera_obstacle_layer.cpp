@@ -258,7 +258,7 @@ namespace costmap_depth_camera
 
       /// create a callback for the topic
       rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-      custom_qos_profile.depth = 50;
+      custom_qos_profile.depth = 150;
 
       auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
           rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);

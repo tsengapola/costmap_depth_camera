@@ -143,8 +143,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
     //RCLCPP_WARN_STREAM(logger_,"+++++ (x,y,z):" << tf_stamped.transform.translation.x << "," << tf_stamped.transform.translation.y << "," << tf_stamped.transform.translation.z);
-    tf_stamped.transform.translation.z=0.0;
-
+    //tf_stamped.transform.translation.z=0.0;
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
     //sensor_msgs::msg::PointCloud2 global_frame_cloud;
