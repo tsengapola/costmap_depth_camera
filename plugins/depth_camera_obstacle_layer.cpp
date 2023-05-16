@@ -110,7 +110,7 @@ namespace costmap_depth_camera
     declareParameter("size_of_cluster_rejection", rclcpp::ParameterValue(5));
     node->get_parameter(name_ + ".size_of_cluster_rejection", size_of_cluster_rejection_);
     
-    declareParameter("voxel_resolution", rclcpp::ParameterValue(0.01));
+    declareParameter("voxel_resolution", rclcpp::ParameterValue(0.15));
     node->get_parameter(name_ + ".voxel_resolution", voxel_resolution_);
 
     declareParameter("check_radius", rclcpp::ParameterValue(0.1));
@@ -344,6 +344,8 @@ namespace costmap_depth_camera
       const costmap_depth_camera::Observation& obs = *it;
       *combined_observations += *(obs.cloud_);
     }
+    
+    RCLCPP_WARN_STREAM("Update bound is not called!! Because thhe call didnot make.")
 
     ///Given combined pointcloud to clear the markings by kd-tree method
     ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);
@@ -548,6 +550,7 @@ namespace costmap_depth_camera
     buffer->lock();
     buffer->bufferCloud(*message);
     buffer->unlock();
+    current_ = true;
   }
 
   //////////////////////////////////////////////////////////////////////////////////
@@ -893,9 +896,11 @@ namespace costmap_depth_camera
       searchPoint.z = cluster_cloud->points[i].z;
     
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-      bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);
+      double distance_to_plane;
+      bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
 
       ///RCLCPP_WARN_STREAM(logger_, "in Frustum: "<< is_in_FRUSTUM << ", is attach frustum: " << is_attach_FRUSTUM);
+      RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ", distance: " << distance_to_plane);
 
       ///These are robust marking conditions, attachment testing usually causing boundary condition.*/
       if(!is_in_FRUSTUM || is_attach_FRUSTUM)

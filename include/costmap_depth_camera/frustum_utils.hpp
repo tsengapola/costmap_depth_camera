@@ -50,7 +50,7 @@ namespace costmap_depth_camera
       /*
       Test if a point is attached frustums (for boundary test)
       */
-      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint);
+      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint, double& distance);
 
       /*
       This function is used to check a point attached on one frustum but inside another frustum

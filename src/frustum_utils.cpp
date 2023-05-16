@@ -53,7 +53,7 @@ namespace costmap_depth_camera
 
   }
 
-  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint)
+  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint, double& distance)
   {
     for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
     {
@@ -66,22 +66,23 @@ namespace costmap_depth_camera
         float d = (*it_plane)[3];
         float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
         dis = dis/sqrt(a*a+b*b+c*c);
+        distance = dis;
         float dis2rej = 0.12;
         if(dis<=dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_+0.5)
         {
         //find one frustum such that no attachment and inside frumstum
-          for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
-          {
-            if(it==it_inner)
-            {
-            //ROS_WARN("Same frustum.");
-              continue;
-            }
-            else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
-            {
-              return false;
-            }
-          }
+          // for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
+          // {
+          //   if(it==it_inner)
+          //   {
+          //   //ROS_WARN("Same frustum.");
+          //     continue;
+          //   }
+          //   else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
+          //   {
+          //     return false;
+          //   }
+          // }
           return true;
         }
       } 
