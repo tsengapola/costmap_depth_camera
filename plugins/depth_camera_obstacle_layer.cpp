@@ -345,7 +345,7 @@ namespace costmap_depth_camera
       *combined_observations += *(obs.cloud_);
     }
     
-    RCLCPP_WARN_STREAM("Update bound is not called!! Because thhe call didnot make.")
+    RCLCPP_WARN(logger_,"[DepthCostMap] +++++++++++ UpdateBound, clear marking");
 
     ///Given combined pointcloud to clear the markings by kd-tree method
     ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);
@@ -737,7 +737,7 @@ namespace costmap_depth_camera
         /// if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
         if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub)
         {
-          //RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
+          RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
           continue;
         }
 
@@ -758,6 +758,8 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
+          double distance_to_plane;
+          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
@@ -780,10 +782,15 @@ namespace costmap_depth_camera
               (*it_3d_map).second.erase(it);
             }
           } 
-          // else 
-          // {
-          //   RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-          // }
+          else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
+          {
+            (*it_3d_map).second.erase(it);
+          }
+          else 
+          {
+            //RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
+            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d, distance: %.2f", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM, distance_to_plane);
+          }
         }
       }
     }
@@ -825,6 +832,8 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
+          double distance_to_plane;
+          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
@@ -847,10 +856,14 @@ namespace costmap_depth_camera
               (*it_3d_map).second.erase(it);
             }
           }
-          // else 
-          // {
-          //   RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-          // }
+          else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
+          {
+            (*it_3d_map).second.erase(it);
+          }
+          else 
+          {
+            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d, distance: %.2f", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM, distance_to_plane);
+          }
         }
       }    
     }
@@ -894,17 +907,41 @@ namespace costmap_depth_camera
       searchPoint.x = wx;
       searchPoint.y = wy;
       searchPoint.z = cluster_cloud->points[i].z;
-    
+
+      //RCLCPP_WARN_STREAM(logger_,"Original (x,y,z): " << searchPoint.x << "," << searchPoint.y  << "," << searchPoint.z);
+
+      /// Make sure the search point is not affected by the grid resolution
+      if (!worldToMap(wx, wy, mx, my))
+      {
+        RCLCPP_DEBUG(logger_,"[ProcessCluster] Computing map coords failed");
+        continue;
+      }
+      //unsigned int tmp_index = getIndex(mx,my);
+      int tmp_h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
+
+      //RCLCPP_WARN_STREAM(logger_, "Grid resolution: " << layered_costmap_->getCostmap()->getResolution());
+
+      double wx2, wy2;
+      mapToWorld(mx, my, wx2, wy2);
+      searchPoint.x = wx2; // 1.000000
+      searchPoint.y = wy2; // 1.700000
+      searchPoint.z = tmp_h_ind*voxel_resolution_; //0.760000
+      
+      RCLCPP_WARN_STREAM(logger_,"Converted (x,y,z): " << searchPoint.x << "," << searchPoint.y  << "," << searchPoint.z);
+
+
+      wx = searchPoint.x;
+      wy = searchPoint.y;
+      
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
       double distance_to_plane;
       bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
 
-      ///RCLCPP_WARN_STREAM(logger_, "in Frustum: "<< is_in_FRUSTUM << ", is attach frustum: " << is_attach_FRUSTUM);
-      RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ", distance: " << distance_to_plane);
 
       ///These are robust marking conditions, attachment testing usually causing boundary condition.*/
       if(!is_in_FRUSTUM || is_attach_FRUSTUM)
-      {
+      {  
+        //RCLCPP_WARN_STREAM(logger_, "in Frustum: "<< is_in_FRUSTUM << ", is attach frustum: " << is_attach_FRUSTUM);
         continue;
       }  
     
@@ -926,6 +963,11 @@ namespace costmap_depth_camera
         }
 
         insert_ptr_ = pc_3d_map_[index].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
+        RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y 
+                                                    << "," << searchPoint.z 
+                                                    << ", distance: " << distance_to_plane
+                                                    << ", is_attach_FRUSTUM: " << is_attach_FRUSTUM
+                                                    << ", is_in_FRUSTUM: " << is_in_FRUSTUM);
         
         if(!insert_ptr_.second)//the key is already in map, put max label in it!
         {
@@ -947,6 +989,11 @@ namespace costmap_depth_camera
         
         ///Add into std::map
         insert_ptr_ = pc_3d_map_global_[std::pair<int, int>(mmx, mmy)].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
+        RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y 
+                                                    << "," << searchPoint.z 
+                                                    << ", distance: " << distance_to_plane
+                                                    << ", is_attach_FRUSTUM: " << is_attach_FRUSTUM
+                                                    << ", is_in_FRUSTUM: " << is_in_FRUSTUM);        
         if(!insert_ptr_.second)//the key is already in map, put max label in it!
         {
           pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind] = std::max(pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind],cluster_cloud->points[i].intensity);
