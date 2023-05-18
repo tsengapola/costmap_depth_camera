@@ -53,7 +53,32 @@ namespace costmap_depth_camera
 
   }
 
-  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint, double& distance)
+  bool FrustumUtils::isInsideMaxDetectDistance(pcl::PointXYZI testPoint, costmap_depth_camera::Observation& obs, float& out_distance)
+  {
+    bool ret;
+
+    float dx = (testPoint.x-obs.origin_.x)*(testPoint.x-obs.origin_.x);
+    float dy = (testPoint.y-obs.origin_.y)*(testPoint.y-obs.origin_.y);
+    float dz = (testPoint.z-obs.origin_.z)*(testPoint.z-obs.origin_.z);
+    float distance = sqrt(dx+dy+dz);
+
+    /// There is a hardcoded distance to be check the distance between b/w spehere and frustum
+    /// We have added the distance to max detect distance to include all points b/w sphere 
+    /// and frustum to be attached.
+    if(distance < obs.max_detect_distance_ + 1.5)
+    {
+      ret = true;
+    }
+    else
+    {
+      ret = false;
+    }
+    out_distance = distance;
+    return ret;
+  } 
+
+
+  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint, std::vector<std::pair<double,double>>& distance)
   {
     for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
     {
@@ -66,9 +91,12 @@ namespace costmap_depth_camera
         float d = (*it_plane)[3];
         float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
         dis = dis/sqrt(a*a+b*b+c*c);
-        distance = dis;
         float dis2rej = 0.12;
-        if(dis<=dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_+0.5)
+        float dis2obstacle;        
+        bool max_distance_check = isInsideMaxDetectDistance(testPoint, obs, dis2obstacle);
+        distance.push_back(std::pair<double,double>(dis, dis2obstacle));
+        
+        if(dis <= dis2rej && max_distance_check==true)
         {
         //find one frustum such that no attachment and inside frumstum
           for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
@@ -89,8 +117,7 @@ namespace costmap_depth_camera
     }
     return false;
   }
-
-
+  
   bool FrustumUtils::isInsideFRUSTUMwoAttach(costmap_depth_camera::Observation& observation, pcl::PointXYZI testPoint)
   {
     for(auto it=observation.frustum_plane_equation_.begin();it!=observation.frustum_plane_equation_.end();it++)
@@ -102,7 +129,9 @@ namespace costmap_depth_camera
       float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
       dis = dis/sqrt(a*a+b*b+c*c);
       float dis2rej = 0.12;
-      if(dis<=dis2rej && hypot(testPoint.x-observation.origin_.x, testPoint.y-observation.origin_.y)<observation.max_detect_distance_+0.5)
+      float dis2obstacle;
+      bool max_distance_check =  isInsideMaxDetectDistance(testPoint, observation, dis2obstacle);
+      if(dis<=dis2rej &&  max_distance_check==true)
       {
         return false;
       }

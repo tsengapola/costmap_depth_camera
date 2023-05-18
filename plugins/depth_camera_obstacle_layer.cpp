@@ -49,6 +49,8 @@ using nav2_costmap_2d::FREE_SPACE;
 using costmap_depth_camera::ObservationBuffer;
 using costmap_depth_camera::Observation;
 
+#define DEBUG 0
+
 namespace costmap_depth_camera
 {
   /////////////////////////////////////////////////////////////////
@@ -344,8 +346,6 @@ namespace costmap_depth_camera
       const costmap_depth_camera::Observation& obs = *it;
       *combined_observations += *(obs.cloud_);
     }
-    
-    RCLCPP_WARN(logger_,"[DepthCostMap] +++++++++++ UpdateBound, clear marking");
 
     ///Given combined pointcloud to clear the markings by kd-tree method
     ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);
@@ -413,14 +413,11 @@ namespace costmap_depth_camera
                                              int min_i, int min_j, int max_i, int max_j)
   {
 
-    //RCLCPP_INFO_STREAM(logger_,"[updateCosts] enable: " << enabled_);
-    
     if (!enabled_)
     {
       return;
     }
-
-        
+      
     unsigned char* master_array = master_grid.getCharMap();
     unsigned int mx, my; 
 
@@ -749,6 +746,10 @@ namespace costmap_depth_camera
           searchPoint.z = (*it).first*voxel_resolution_;
           searchPoint.intensity = (*it).second;
 
+          #if(DEBUG)
+          RCLCPP_WARN(logger_,"[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
+          #endif
+          
           if(is_marking_sub)
           {
             marking->push_back(searchPoint);
@@ -758,8 +759,19 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-          double distance_to_plane;
+          std::vector<std::pair<double,double>> distance_to_plane;
           is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
+          
+          #if(DEBUG)
+          RCLCPP_WARN(logger_,"[Clearing: before check] x,y,z: %f,%f,%f ----- %d, %d",searchPoint.x,searchPoint.y,searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
+          
+          for(int k=0;k<distance_to_plane.size(); k++)
+          {
+            RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot: %f", k, distance_to_plane[k].first, distance_to_plane[k].second);
+          }
+          RCLCPP_WARN(logger_,"=============");
+          #endif
+
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
@@ -789,7 +801,13 @@ namespace costmap_depth_camera
           else 
           {
             //RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
-            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d, distance: %.2f", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM, distance_to_plane);
+            /// Should never reached here !!
+            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
+            for(int k=0;k<distance_to_plane.size(); k++)
+            {
+              RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot: %f", k, distance_to_plane[k].first, distance_to_plane[k].second);
+            }
+            RCLCPP_WARN(logger_,"=============");
           }
         }
       }
@@ -798,7 +816,7 @@ namespace costmap_depth_camera
     {
       ///Iterate marking in global frame marking mode
       for(auto it_3d_map=pc_3d_map_global_.begin();it_3d_map!=pc_3d_map_global_.end();it_3d_map++)
-      {
+      {  
         intIndexToWorld(wx, wy, (*it_3d_map).first.first, (*it_3d_map).first.second, layered_costmap_->getCostmap()->getResolution());
         bool is_in_FRUSTUM = false;
         bool is_attach_FRUSTUM = false;
@@ -820,8 +838,11 @@ namespace costmap_depth_camera
           searchPoint.z = (*it).first*voxel_resolution_;
           searchPoint.intensity = (*it).second;
 
-          //RCLCPP_WARN_STREAM(logger_,"search (x,y,z): (" << searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ")");
+          #if(DEBUG)
+          RCLCPP_WARN(logger_,"+[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
+          #endif
 
+          //RCLCPP_WARN_STREAM(logger_,"search (x,y,z): (" << searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ")");
 
           if(is_marking_sub)
           {
@@ -832,7 +853,7 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-          double distance_to_plane;
+          std::vector<std::pair<double,double>> distance_to_plane;
           is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
@@ -862,7 +883,13 @@ namespace costmap_depth_camera
           }
           else 
           {
-            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d, distance: %.2f", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM, distance_to_plane);
+            /// Should never reached here !!! 
+            RCLCPP_WARN(logger_,"+Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
+            for(int k=0;k<distance_to_plane.size(); k++)
+            {
+              RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot:%f", k, distance_to_plane[k].first, distance_to_plane[k].second);
+            }
+            RCLCPP_WARN(logger_,"=============");
           }
         }
       }    
@@ -888,13 +915,39 @@ namespace costmap_depth_camera
     double wx,wy;
     unsigned int index;
     int mmx, mmy;
-
   
     ///Prepare for frustum_utils
     FrustumUtils frustum_utils(&observations);
 
+    /// Test points
+    //int conversion_error_cnt=0;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr tmp_cluster_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+    // tmp_cluster_cloud->clear();
+
+    // pcl::PointXYZI tmp_pt;
+    // tmp_pt.x = 1.700000; tmp_pt.y = 2.700000; tmp_pt.z = 0.810000; // 
+    // tmp_cluster_cloud->push_back(tmp_pt);
+    
+    // tmp_pt.x = 1.700000; tmp_pt.y = 2.700000; tmp_pt.z = 0.850000;
+    // tmp_cluster_cloud->push_back(tmp_pt);
+
+    // tmp_pt.x = 1.800000; tmp_pt.y = 2.900000; tmp_pt.z = 0.730000;
+    // tmp_cluster_cloud->push_back(tmp_pt);
+
+    // tmp_pt.x = 1.800000; tmp_pt.y = 2.900000; tmp_pt.z = 0.740000;
+    // tmp_cluster_cloud->push_back(tmp_pt);
+    
+    // tmp_pt.x = 3.500000; tmp_pt.y = 0.000000; tmp_pt.z = 1.570000;
+    // tmp_cluster_cloud->push_back(tmp_pt);
+
+    // tmp_pt.x = 3.500000; tmp_pt.y = 0.000000; tmp_pt.z = 1.580000;
+    // tmp_cluster_cloud->push_back(tmp_pt);
+       
+    
     for(int i=0;i<cluster_cloud->points.size();i++)
     {
+      //RCLCPP_WARN_STREAM(logger_, "Test point (x,y,z): " << tmp_cluster_cloud->points[i].x << ","<<tmp_cluster_cloud->points[i].y <<","<<tmp_cluster_cloud->points[i].z);
+  
       pt.x = cluster_cloud->points[i].x;
       pt.y = cluster_cloud->points[i].y;
       pt.z = cluster_cloud->points[i].z;
@@ -908,38 +961,12 @@ namespace costmap_depth_camera
       searchPoint.y = wy;
       searchPoint.z = cluster_cloud->points[i].z;
 
-      //RCLCPP_WARN_STREAM(logger_,"Original (x,y,z): " << searchPoint.x << "," << searchPoint.y  << "," << searchPoint.z);
-
-      /// Make sure the search point is not affected by the grid resolution
-      if (!worldToMap(wx, wy, mx, my))
-      {
-        RCLCPP_DEBUG(logger_,"[ProcessCluster] Computing map coords failed");
-        continue;
-      }
-      //unsigned int tmp_index = getIndex(mx,my);
-      int tmp_h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-
-      //RCLCPP_WARN_STREAM(logger_, "Grid resolution: " << layered_costmap_->getCostmap()->getResolution());
-
-      double wx2, wy2;
-      mapToWorld(mx, my, wx2, wy2);
-      searchPoint.x = wx2; // 1.000000
-      searchPoint.y = wy2; // 1.700000
-      searchPoint.z = tmp_h_ind*voxel_resolution_; //0.760000
-      
-      RCLCPP_WARN_STREAM(logger_,"Converted (x,y,z): " << searchPoint.x << "," << searchPoint.y  << "," << searchPoint.z);
-
-
-      wx = searchPoint.x;
-      wy = searchPoint.y;
-      
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-      double distance_to_plane;
+      std::vector<std::pair<double,double>> distance_to_plane;
       bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
-
-
+      
       ///These are robust marking conditions, attachment testing usually causing boundary condition.*/
-      if(!is_in_FRUSTUM || is_attach_FRUSTUM)
+      if(!is_in_FRUSTUM || is_attach_FRUSTUM )
       {  
         //RCLCPP_WARN_STREAM(logger_, "in Frustum: "<< is_in_FRUSTUM << ", is attach frustum: " << is_attach_FRUSTUM);
         continue;
@@ -952,7 +979,8 @@ namespace costmap_depth_camera
           RCLCPP_DEBUG(logger_,"[ProcessCluster] Computing map coords failed");
           continue;
         }    
-      
+
+
         unsigned int index = getIndex(mx,my);
 
         int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
@@ -963,15 +991,17 @@ namespace costmap_depth_camera
         }
 
         insert_ptr_ = pc_3d_map_[index].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
-        RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y 
-                                                    << "," << searchPoint.z 
-                                                    << ", distance: " << distance_to_plane
-                                                    << ", is_attach_FRUSTUM: " << is_attach_FRUSTUM
-                                                    << ", is_in_FRUSTUM: " << is_in_FRUSTUM);
+        
+        #if(DEBUG)
+        RCLCPP_WARN_STREAM(logger_,"[After insert] x,y,z: "<< searchPoint.x << "," << searchPoint.y 
+                                                           << "," << searchPoint.z 
+                                                           << ", is_inside: " << is_in_FRUSTUM
+                                                           << ", is_attach: " << is_attach_FRUSTUM);
+        #endif
         
         if(!insert_ptr_.second)//the key is already in map, put max label in it!
         {
-          pc_3d_map_[index][h_ind] = std::max(pc_3d_map_[index][h_ind],cluster_cloud->points[i].intensity);
+          pc_3d_map_[index][h_ind] = std::max(pc_3d_map_[index][h_ind], cluster_cloud->points[i].intensity);
         }
         touch(wx, wy, min_x, min_y, max_x, max_y);
       }
@@ -989,11 +1019,15 @@ namespace costmap_depth_camera
         
         ///Add into std::map
         insert_ptr_ = pc_3d_map_global_[std::pair<int, int>(mmx, mmy)].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
-        RCLCPP_WARN_STREAM(logger_,"Search(x,y,z): "<< searchPoint.x << "," << searchPoint.y 
-                                                    << "," << searchPoint.z 
-                                                    << ", distance: " << distance_to_plane
-                                                    << ", is_attach_FRUSTUM: " << is_attach_FRUSTUM
-                                                    << ", is_in_FRUSTUM: " << is_in_FRUSTUM);        
+        
+        #if(DEBUG)  
+        RCLCPP_WARN_STREAM(logger_,"[After insert] x,y,z: "<< searchPoint.x << "," << searchPoint.y 
+                                                           << "," << searchPoint.z 
+                                                           << ", is_inside: " << is_in_FRUSTUM
+                                                           << ", is_attach: " << is_attach_FRUSTUM);
+
+        #endif
+
         if(!insert_ptr_.second)//the key is already in map, put max label in it!
         {
           pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind] = std::max(pc_3d_map_global_[std::pair<int, int>(mmx, mmy)][h_ind],cluster_cloud->points[i].intensity);
@@ -1002,6 +1036,7 @@ namespace costmap_depth_camera
       
       }
     }
+    //RCLCPP_WARN_STREAM(logger_, "cluster cloud size: " << cluster_cloud->points.size() << ", dummy count: " << conversion_error_cnt);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////

@@ -141,7 +141,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
-    //tf_stamped.transform.translation.z = 0.70; /// Remove this !!! This will not change the frustum and therefore wont help.
+    //tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2::TimePointZero, tf2::durationFromSec(0.5));
     tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
@@ -259,6 +259,8 @@ void ObservationBuffer::purgeStaleObservations()
 
 bool ObservationBuffer::isCurrent() const
 {
+  
+  /// A quick hack
   return true;
   
   if (expected_update_rate_ == rclcpp::Duration(rclcpp::Duration::from_seconds(0.0)))

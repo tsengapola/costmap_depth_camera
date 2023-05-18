@@ -47,19 +47,17 @@ namespace costmap_depth_camera
       FrustumUtils(std::vector<costmap_depth_camera::Observation>* observations);
       ~FrustumUtils();
 
-      /*
-      Test if a point is attached frustums (for boundary test)
-      */
-      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint, double& distance);
+      /// Test if a point is inside the max detection range
+      bool isInsideMaxDetectDistance(pcl::PointXYZI testPoint, costmap_depth_camera::Observation& obs, float& out_distance);
 
-      /*
-      This function is used to check a point attached on one frustum but inside another frustum
-      */
+
+      ///Test if a point is attached frustums (for boundary test)
+      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint, std::vector<std::pair<double,double>>& distance);
+
+      ///This function is used to check a point attached on one frustum but inside another frustum
       bool isInsideFRUSTUMwoAttach(costmap_depth_camera::Observation& observation, pcl::PointXYZI testPoint);
 
-      /*
-      This function is used to test if a point is in frustums
-      */
+      ///This function is used to test if a point is in frustums
       bool isInsideFRUSTUMs(pcl::PointXYZI testPoint);
       
     private:
