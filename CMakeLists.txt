@@ -148,7 +148,7 @@ install(FILES costmap_plugins.xml
 # )
 
 #ament_export_dependencies(rosidl_default_runtime)
-pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
+pluginlib_export_plugin_description_file(costmap_depth_camera costmap_plugins.xml)
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
 ament_package()
