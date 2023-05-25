@@ -260,7 +260,7 @@ namespace costmap_depth_camera
 
       /// create a callback for the topic
       rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_sensor_data;
-      custom_qos_profile.depth = 150;
+      custom_qos_profile.depth = 10;
 
       auto sub = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::PointCloud2,
           rclcpp_lifecycle::LifecycleNode>>(node, topic, custom_qos_profile, sub_opt);
@@ -802,12 +802,12 @@ namespace costmap_depth_camera
           {
             //RCLCPP_WARN(logger_,"Pass: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
             /// Should never reached here !!
-            RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
-            for(int k=0;k<distance_to_plane.size(); k++)
-            {
-              RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot: %f", k, distance_to_plane[k].first, distance_to_plane[k].second);
-            }
-            RCLCPP_WARN(logger_,"=============");
+            // RCLCPP_WARN(logger_,"Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
+            // for(int k=0;k<distance_to_plane.size(); k++)
+            // {
+            //   RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot: %f", k, distance_to_plane[k].first, distance_to_plane[k].second);
+            // }
+            // RCLCPP_WARN(logger_,"=============");
           }
         }
       }
@@ -884,12 +884,12 @@ namespace costmap_depth_camera
           else 
           {
             /// Should never reached here !!! 
-            RCLCPP_WARN(logger_,"+Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
-            for(int k=0;k<distance_to_plane.size(); k++)
-            {
-              RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot:%f", k, distance_to_plane[k].first, distance_to_plane[k].second);
-            }
-            RCLCPP_WARN(logger_,"=============");
+            //RCLCPP_WARN(logger_,"+Pass: %f,%f,%f, is_inside: %d, is_attach: %d", searchPoint.x, searchPoint.y, searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
+            // for(int k=0;k<distance_to_plane.size(); k++)
+            // {
+            //   RCLCPP_WARN(logger_,"plane: %d, distance: %f, hypot:%f", k, distance_to_plane[k].first, distance_to_plane[k].second);
+            // }
+            // RCLCPP_WARN(logger_,"=============");
           }
         }
       }    
@@ -921,28 +921,29 @@ namespace costmap_depth_camera
 
     /// Test points
     //int conversion_error_cnt=0;
-    // pcl::PointCloud<pcl::PointXYZI>::Ptr tmp_cluster_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-    // tmp_cluster_cloud->clear();
+    #if(0)
+    pcl::PointCloud<pcl::PointXYZI>::Ptr tmp_cluster_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+    tmp_cluster_cloud->clear();
 
-    // pcl::PointXYZI tmp_pt;
-    // tmp_pt.x = 1.700000; tmp_pt.y = 2.700000; tmp_pt.z = 0.810000; // 
-    // tmp_cluster_cloud->push_back(tmp_pt);
+    pcl::PointXYZI tmp_pt;
+    tmp_pt.x = -3.200000; tmp_pt.y = -2.600000; tmp_pt.z = 0.540000;
+    tmp_cluster_cloud->push_back(tmp_pt);
     
-    // tmp_pt.x = 1.700000; tmp_pt.y = 2.700000; tmp_pt.z = 0.850000;
-    // tmp_cluster_cloud->push_back(tmp_pt);
+    tmp_pt.x = -3.350000; tmp_pt.y = -2.350000; tmp_pt.z = 0.240000;
+    tmp_cluster_cloud->push_back(tmp_pt);
 
-    // tmp_pt.x = 1.800000; tmp_pt.y = 2.900000; tmp_pt.z = 0.730000;
-    // tmp_cluster_cloud->push_back(tmp_pt);
+    tmp_pt.x = -3.400000; tmp_pt.y = -2.750000; tmp_pt.z = 0.570000;
+    tmp_cluster_cloud->push_back(tmp_pt);
 
-    // tmp_pt.x = 1.800000; tmp_pt.y = 2.900000; tmp_pt.z = 0.740000;
-    // tmp_cluster_cloud->push_back(tmp_pt);
+    tmp_pt.x = -3.600000; tmp_pt.y = -1.600000; tmp_pt.z =0.220000;
+    tmp_cluster_cloud->push_back(tmp_pt);
     
-    // tmp_pt.x = 3.500000; tmp_pt.y = 0.000000; tmp_pt.z = 1.570000;
-    // tmp_cluster_cloud->push_back(tmp_pt);
+    tmp_pt.x = -3.900000; tmp_pt.y =-2.750000; tmp_pt.z =0.640000;
+    tmp_cluster_cloud->push_back(tmp_pt);
 
-    // tmp_pt.x = 3.500000; tmp_pt.y = 0.000000; tmp_pt.z = 1.580000;
-    // tmp_cluster_cloud->push_back(tmp_pt);
-       
+    tmp_pt.x = -4.000000; tmp_pt.y = -3.150000; tmp_pt.z =0.770000;
+    tmp_cluster_cloud->push_back(tmp_pt);
+    #endif   
     
     for(int i=0;i<cluster_cloud->points.size();i++)
     {
@@ -965,6 +966,13 @@ namespace costmap_depth_camera
       std::vector<std::pair<double,double>> distance_to_plane;
       bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
       
+      // for(unsigned int k=0; i<distance_to_plane.size(); k++)
+      // {
+      //   if(distance_to_plane[k].second>5.5)
+      //   {
+      //     continue;
+      //   }
+      // }
       ///These are robust marking conditions, attachment testing usually causing boundary condition.*/
       if(!is_in_FRUSTUM || is_attach_FRUSTUM )
       {  

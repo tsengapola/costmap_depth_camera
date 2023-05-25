@@ -99,18 +99,18 @@ namespace costmap_depth_camera
         if(dis <= dis2rej && max_distance_check==true)
         {
         //find one frustum such that no attachment and inside frumstum
-          for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
-          {
-            if(it==it_inner)
-            {
-            //ROS_WARN("Same frustum.");
-              continue;
-            }
-            else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
-            {
-              return false;
-            }
-          }
+          // for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
+          // {
+          //   if(it==it_inner)
+          //   {
+          //   //ROS_WARN("Same frustum.");
+          //     continue;
+          //   }
+          //   else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
+          //   {
+          //     return false;
+          //   }
+          // }
           return true;
         }
       } 
