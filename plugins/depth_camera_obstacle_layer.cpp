@@ -88,6 +88,7 @@ void DepthCameraObstacleLayer::onInitialize()
   nh.param("check_radius", check_radius_, 0.1);
   nh.param("number_clearing_threshold", number_clearing_threshold_, 2);
   nh.param("use_global_frame_to_mark", use_global_frame_to_mark_, true);
+  nh.param("use_voxelized_observation", use_voxelized_observation_, true);
 
   marking_height_under_ground_ = 100.0;
   marking_height_above_ground_ = -100.0;
@@ -554,6 +555,14 @@ void DepthCameraObstacleLayer::updateBounds(double robot_x, double robot_y, doub
     const costmap_depth_camera::Observation& obs = *it;
     *combined_observations += *(obs.cloud_);
   }
+  
+  //voxelized pc to save computation
+  if(use_voxelized_observation_){
+    ds_combined_observations_.setLeafSize(0.05, 0.05, 0.05);
+    ds_combined_observations_.setInputCloud(combined_observations);
+    ds_combined_observations_.filter(*combined_observations);
+  }
+
 
   //Given combined pointcloud to clear the markings by kd-tree method
   ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);

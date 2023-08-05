@@ -67,6 +67,9 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+/*This is for voxelized pc*/
+#include <pcl/filters/voxel_grid.h>
+
 namespace costmap_depth_camera
 {
 
@@ -204,6 +207,12 @@ private:
   */
   bool use_global_frame_to_mark_;
   
+  /*
+  Down size combined observations to save computation
+  */
+  bool use_voxelized_observation_;
+  pcl::VoxelGrid<pcl::PointXYZI> ds_combined_observations_;
+
   void worldToIntIndex(double wx, double wy, int& mx, int& my, double resolution) const
   {
     mx = (int)((wx) / resolution);
