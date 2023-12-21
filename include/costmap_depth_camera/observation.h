@@ -40,7 +40,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
 
 /**
@@ -48,21 +48,21 @@ namespace costmap_depth_camera
  * @note Tried to make members and constructor arguments const but the compiler would not accept the default
  * assignment operator for vector insertion!
  */
-class Observation
+class ObservationDepth
 {
 public:
   /**
    * @brief  Creates an empty observation
    */
-  Observation();
+  ObservationDepth();
 
   /**
    * @brief  Copy constructor
    * @param obs The observation to copy
    */
-  Observation(const Observation& obs);
+  ObservationDepth(const ObservationDepth& obs);
 
-  virtual ~Observation();
+  virtual ~ObservationDepth();
 
 
   pcl::PointXYZ getVec(pcl::PointXYZ vec1, pcl::PointXYZ vec2);
@@ -90,7 +90,6 @@ public:
   pcl::PointXYZ TLFar_;
   
 
-}; /// class Observation
-}  /// namespace costmap_depth_camera
+}; /// class ObservationDepth
+}  /// namespace nav2_costmap_2d
 #endif  // COSTMAP_DEPTH_CAMERA_OBSERVATION_H_
-

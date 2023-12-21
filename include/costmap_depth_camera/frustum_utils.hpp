@@ -37,33 +37,29 @@
 #ifndef COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
 #define COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
 
-#include <costmap_depth_camera/observation_buffer.h>
-namespace costmap_depth_camera
+#include <nav2_costmap_2d/observation_buffer_depth.h>
+namespace nav2_costmap_2d
 {
   class FrustumUtils
   {
     public:
 
-      FrustumUtils(std::vector<costmap_depth_camera::Observation>* observations);
+      FrustumUtils(std::vector<nav2_costmap_2d::ObservationDepth>* observations);
       ~FrustumUtils();
 
-      /// Test if a point is inside the max detection range
-      bool isInsideMaxDetectDistance(pcl::PointXYZI testPoint, costmap_depth_camera::Observation& obs, float& out_distance);
-
-
       ///Test if a point is attached frustums (for boundary test)
-      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint, std::vector<std::pair<double,double>>& distance);
+      bool isAttachFRUSTUMs(pcl::PointXYZI testPoint);
 
       ///This function is used to check a point attached on one frustum but inside another frustum
-      bool isInsideFRUSTUMwoAttach(costmap_depth_camera::Observation& observation, pcl::PointXYZI testPoint);
+      bool isInsideFRUSTUMwoAttach(nav2_costmap_2d::ObservationDepth& observation, pcl::PointXYZI testPoint);
 
       ///This function is used to test if a point is in frustums
       bool isInsideFRUSTUMs(pcl::PointXYZI testPoint);
       
     private:
-      std::vector<costmap_depth_camera::Observation>* observations_;
+      std::vector<nav2_costmap_2d::ObservationDepth>* observations_;
       rclcpp::Logger logger_;
   
   };    /// class FrustumUtils
-}       /// namespace costmap_depth_camera
+}       /// namespace nav2_costmap_2d
 #endif  /// COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_ 

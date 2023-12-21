@@ -56,12 +56,14 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 // observation buffer
-#include <costmap_depth_camera/observation_buffer.h>
-#include <costmap_depth_camera/frustum_utils.hpp>
+#include <nav2_costmap_2d/observation_buffer_depth.h>
+#include <nav2_costmap_2d/frustum_utils.hpp>
 
 // messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/point.hpp>
+#include "std_msgs/msg/bool.hpp"
+
 // tf
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
@@ -77,7 +79,7 @@
 /// https://github.com/ros-planning/navigation2_tutorials
 
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
   class DepthCameraObstacleLayer : public nav2_costmap_2d::CostmapLayer
   {
@@ -101,10 +103,10 @@ namespace costmap_depth_camera
     /// @param buffer A pointer to the observation buffer to update
      
     void pointCloud2Callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& message,
-                             const std::shared_ptr<costmap_depth_camera::ObservationBuffer>& buffer);
+                             const std::shared_ptr<nav2_costmap_2d::ObservationBufferDepth>& buffer);
 
     /// for testing purposes
-    void addStaticObservation(costmap_depth_camera::Observation& obs, bool marking, bool clearing);
+    void addStaticObservation(nav2_costmap_2d::ObservationDepth& obs, bool marking, bool clearing);
     void clearStaticObservations(bool marking, bool clearing);
 
   protected:
@@ -113,12 +115,12 @@ namespace costmap_depth_camera
   /// @param marking_observations A reference to a vector that will be populated with the observations
   /// @return True if all the observation buffers are current, false otherwise
   
-  bool getMarkingObservations(std::vector<costmap_depth_camera::Observation>& marking_observations) const;
+  bool getMarkingObservations(std::vector<nav2_costmap_2d::ObservationDepth>& marking_observations) const;
 
   /// @brief  Get the observations used to clear space
   /// @param clearing_observations A reference to a vector that will be populated with the observations
   /// @return True if all the observation buffers are current, false otherwise
-  bool getClearingObservations(std::vector<costmap_depth_camera::Observation>& clearing_observations) const;
+  bool getClearingObservations(std::vector<nav2_costmap_2d::ObservationDepth>& clearing_observations) const;
 
   std::vector<geometry_msgs::msg::Point> transformed_footprint_;
 
@@ -130,15 +132,15 @@ namespace costmap_depth_camera
   std::string global_frame_;  ///< @brief The global frame for the costmap
   std::vector<std::shared_ptr<message_filters::SubscriberBase<rclcpp_lifecycle::LifecycleNode>>> observation_subscribers_;  ///< @brief Used for the observation message filters
   std::vector<std::shared_ptr<tf2_ros::MessageFilterBase> > observation_notifiers_;  ///< @brief Used to make sure that transforms are available for each sensor
-  std::vector<std::shared_ptr<costmap_depth_camera::ObservationBuffer> > observation_buffers_;  ///< @brief Used to store observations from various sensors
-  std::vector<std::shared_ptr<costmap_depth_camera::ObservationBuffer> > marking_buffers_;  ///< @brief Used to store observation buffers used for marking obstacles
-  std::vector<std::shared_ptr<costmap_depth_camera::ObservationBuffer> > clearing_buffers_;  ///< @brief Used to store observation buffers used for clearing obstacles
+  std::vector<std::shared_ptr<nav2_costmap_2d::ObservationBufferDepth> > observation_buffers_;  ///< @brief Used to store observations from various sensors
+  std::vector<std::shared_ptr<nav2_costmap_2d::ObservationBufferDepth> > marking_buffers_;  ///< @brief Used to store observation buffers used for marking obstacles
+  std::vector<std::shared_ptr<nav2_costmap_2d::ObservationBufferDepth> > clearing_buffers_;  ///< @brief Used to store observation buffers used for clearing obstacles
 
   // Used only for testing purposes
-  std::vector<costmap_depth_camera::Observation> static_clearing_observations_, static_marking_observations_;
+  std::vector<nav2_costmap_2d::ObservationDepth> static_clearing_observations_, static_marking_observations_;
 
   bool rolling_window_;
-  //dynamic_reconfigure::Server<costmap_depth_camera::DepthCameraPluginConfig> *dsrv_;
+  //dynamic_reconfigure::Server<nav2_costmap_2d::DepthCameraPluginConfig> *dsrv_;
 
   int combination_method_;
 
@@ -156,18 +158,17 @@ private:
   sensor_msgs::msg::PointCloud2::SharedPtr cluster_msg_;
 
   /// Publish frustums for visualization
-  void pubFrustum(std::vector<costmap_depth_camera::Observation>& observations);
+  void pubFrustum(std::vector<nav2_costmap_2d::ObservationDepth>& observations);
 
   /// Clearing mechanism
   void ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
-                            std::vector<costmap_depth_camera::Observation>& observations,
+                            std::vector<nav2_costmap_2d::ObservationDepth>& observations,
                             double robot_x, double robot_y);
 
   /// Marking mechanism
-  void ProcessCluster(std::vector<costmap_depth_camera::Observation>& observations, 
+  void ProcessCluster(std::vector<nav2_costmap_2d::ObservationDepth>& observations,
                       pcl::PointCloud<pcl::PointXYZI>::Ptr &cluster_cloud, 
-                      double robot_x, double robot_y, double* min_x,
-                      double* min_y, double* max_x, double* max_y);
+                      double* min_x, double* min_y, double* max_x, double* max_y);
 
   /// For boundary gurantee, to prevent crash/seg fault.
   bool isValid(unsigned int mx, unsigned int my);
@@ -210,9 +211,12 @@ private:
   void worldToIntIndex(double wx, double wy, int& mx, int& my, double resolution) const;
   void intIndexToWorld(double& wx, double& wy, int mx, int my, double resolution) const;
 
+  bool has_costmap_initial_;
 
-
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_obstacle_layer_sub_;
+  void enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg);
+  bool restricted_;
 
 };      /// class DepthCameraObstacleLayer
-}       /// namespace costmap_depth_camera 
+}       /// namespace nav2_costmap_2d 
 #endif  /// COSTMAP_DEPTH_CAMERA_OBSTACLE_LAYER_H_

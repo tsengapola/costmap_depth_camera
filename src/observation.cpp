@@ -35,11 +35,11 @@
  * Author: Apola
  *********************************************************************/
 #include <rclcpp/rclcpp.hpp>
-#include <costmap_depth_camera/observation.h>
+#include <nav2_costmap_2d/observation_depth.h>
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
-    Observation::Observation() 
+    ObservationDepth::ObservationDepth() 
     : cloud_(new pcl::PointCloud<pcl::PointXYZI>())
     , frustum_(new pcl::PointCloud<pcl::PointXYZ>())
     , frustum_normal_(new pcl::PointCloud<pcl::PointXYZ>())
@@ -52,7 +52,7 @@ namespace costmap_depth_camera
 
     }
 
-    Observation::Observation(const Observation& obs) 
+    ObservationDepth::ObservationDepth(const ObservationDepth& obs) 
     : origin_(obs.origin_)
     , cloud_(new pcl::PointCloud<pcl::PointXYZI>(*(obs.cloud_)))
     , frustum_(new pcl::PointCloud<pcl::PointXYZ>(*(obs.frustum_)))
@@ -68,14 +68,14 @@ namespace costmap_depth_camera
 
     }
 
-    Observation::~Observation()
+    ObservationDepth::~ObservationDepth()
     {
         delete cloud_;
         delete frustum_;
         delete frustum_normal_;
     }
 
-    pcl::PointXYZ Observation::getVec(pcl::PointXYZ vec1, pcl::PointXYZ vec2)
+    pcl::PointXYZ ObservationDepth::getVec(pcl::PointXYZ vec1, pcl::PointXYZ vec2)
     {
         pcl::PointXYZ vec;
         vec.x = vec2.x - vec1.x;
@@ -84,7 +84,7 @@ namespace costmap_depth_camera
         return vec;
     }
 
-    pcl::PointXYZ Observation::getCrossProduct(pcl::PointXYZ vec1, pcl::PointXYZ vec2)
+    pcl::PointXYZ ObservationDepth::getCrossProduct(pcl::PointXYZ vec1, pcl::PointXYZ vec2)
     {
         pcl::PointXYZ crsp;
         crsp.x = vec1.y * vec2.z - vec1.z * vec2.y;
@@ -98,7 +98,7 @@ namespace costmap_depth_camera
     }
 
     /// Function to find equation of plane. 
-    void Observation::getPlaneN(Eigen::Vector4f& plane_equation, pcl::PointXYZ p1, pcl::PointXYZ p2, pcl::PointXYZ p3) 
+    void ObservationDepth::getPlaneN(Eigen::Vector4f& plane_equation, pcl::PointXYZ p1, pcl::PointXYZ p2, pcl::PointXYZ p3) 
     { 
         plane_equation = Eigen::Vector4f::Zero();
         float a1 = p2.x - p1.x; 
@@ -113,7 +113,7 @@ namespace costmap_depth_camera
         plane_equation[3] = (-plane_equation[0] * p1.x - plane_equation[1] * p1.y - plane_equation[2] * p1.z); 
     }
 
-    void Observation::findFrustumVertex()
+    void ObservationDepth::findFrustumVertex()
     {
 
         frustum_->clear();
@@ -129,7 +129,7 @@ namespace costmap_depth_camera
     }
  
 
-    void Observation::findFrustumNormal()
+    void ObservationDepth::findFrustumNormal()
     {
 
         BRNear_ = frustum_->points[3];
@@ -219,7 +219,7 @@ namespace costmap_depth_camera
         */
     }
 
-    void Observation::findFrustumPlane()
+    void ObservationDepth::findFrustumPlane()
     {
         //frustum_plane_equation_.clear();
 
@@ -258,5 +258,4 @@ namespace costmap_depth_camera
         frustum_plane_equation_.push_back(plane6);
     }
 
-} /// namespace costmap_depth_camera
-
+} /// namespace nav2_costmap_2d

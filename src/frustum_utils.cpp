@@ -35,13 +35,13 @@
  * Author: Apola
  *********************************************************************/
 
-#include <costmap_depth_camera/frustum_utils.hpp>
+#include <nav2_costmap_2d/frustum_utils.hpp>
 #define DEBUG 0
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
 
-  FrustumUtils::FrustumUtils(std::vector<costmap_depth_camera::Observation>* observations)
+  FrustumUtils::FrustumUtils(std::vector<nav2_costmap_2d::ObservationDepth>* observations)
   : observations_(observations)
   , logger_(rclcpp::get_logger("frustum_utils_logger"))
   {
@@ -53,36 +53,11 @@ namespace costmap_depth_camera
 
   }
 
-  bool FrustumUtils::isInsideMaxDetectDistance(pcl::PointXYZI testPoint, costmap_depth_camera::Observation& obs, float& out_distance)
+  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint)
   {
-    bool ret;
-
-    float dx = (testPoint.x-obs.origin_.x)*(testPoint.x-obs.origin_.x);
-    float dy = (testPoint.y-obs.origin_.y)*(testPoint.y-obs.origin_.y);
-    float dz = (testPoint.z-obs.origin_.z)*(testPoint.z-obs.origin_.z);
-    float distance = sqrt(dx+dy+dz);
-
-    /// There is a hardcoded distance to be check the distance between b/w spehere and frustum
-    /// We have added the distance to max detect distance to include all points b/w sphere 
-    /// and frustum to be attached.
-    if(distance < obs.max_detect_distance_ + 1.5)
+    for (std::vector<nav2_costmap_2d::ObservationDepth>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
     {
-      ret = true;
-    }
-    else
-    {
-      ret = false;
-    }
-    out_distance = distance;
-    return ret;
-  } 
-
-
-  bool FrustumUtils::isAttachFRUSTUMs(pcl::PointXYZI testPoint, std::vector<std::pair<double,double>>& distance)
-  {
-    for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
-    {
-      costmap_depth_camera::Observation& obs = *it;
+      nav2_costmap_2d::ObservationDepth& obs = *it;
       for(auto it_plane=obs.frustum_plane_equation_.begin();it_plane!=obs.frustum_plane_equation_.end();it_plane++)
       {
         float a = (*it_plane)[0];
@@ -92,25 +67,22 @@ namespace costmap_depth_camera
         float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
         dis = dis/sqrt(a*a+b*b+c*c);
         float dis2rej = 0.12;
-        float dis2obstacle;        
-        bool max_distance_check = isInsideMaxDetectDistance(testPoint, obs, dis2obstacle);
-        distance.push_back(std::pair<double,double>(dis, dis2obstacle));
-        
-        if(dis <= dis2rej && max_distance_check==true)
+
+        if(dis <= dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_+0.5)
         {
         //find one frustum such that no attachment and inside frumstum
-          // for (std::vector<costmap_depth_camera::Observation>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
-          // {
-          //   if(it==it_inner)
-          //   {
-          //   //ROS_WARN("Same frustum.");
-          //     continue;
-          //   }
-          //   else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
-          //   {
-          //     return false;
-          //   }
-          // }
+          for (std::vector<nav2_costmap_2d::ObservationDepth>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
+          {
+            if(it==it_inner)
+            {
+            //ROS_WARN("Same frustum.");
+              continue;
+            }
+            else if(isInsideFRUSTUMwoAttach(*it_inner, testPoint))
+            {
+              return false;
+            }
+          }
           return true;
         }
       } 
@@ -118,7 +90,7 @@ namespace costmap_depth_camera
     return false;
   }
   
-  bool FrustumUtils::isInsideFRUSTUMwoAttach(costmap_depth_camera::Observation& observation, pcl::PointXYZI testPoint)
+  bool FrustumUtils::isInsideFRUSTUMwoAttach(nav2_costmap_2d::ObservationDepth& observation, pcl::PointXYZI testPoint)
   {
     for(auto it=observation.frustum_plane_equation_.begin();it!=observation.frustum_plane_equation_.end();it++)
     {
@@ -129,9 +101,7 @@ namespace costmap_depth_camera
       float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
       dis = dis/sqrt(a*a+b*b+c*c);
       float dis2rej = 0.12;
-      float dis2obstacle;
-      bool max_distance_check =  isInsideMaxDetectDistance(testPoint, observation, dis2obstacle);
-      if(dis<=dis2rej &&  max_distance_check==true)
+      if(dis<=dis2rej && hypot(testPoint.x-observation.origin_.x, testPoint.y-observation.origin_.y)<observation.max_detect_distance_+0.5)
       {
         return false;
       }
@@ -180,10 +150,10 @@ namespace costmap_depth_camera
     testPoint_XYZ.y = testPoint.y;
     testPoint_XYZ.z = testPoint.z;
 
-    for (std::vector<costmap_depth_camera::Observation>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
+    for (std::vector<nav2_costmap_2d::ObservationDepth>::iterator it = (*observations_).begin(); it != (*observations_).end(); ++it)
     {  
     bool one_frustum_test = true; //if we test the point in one of the frustum, then we can exit
-    costmap_depth_camera::Observation& obs = *it;
+    nav2_costmap_2d::ObservationDepth& obs = *it;
     pcl::PointXYZ vec_form_pc2corner;
     double test;
     for(int i=0;i<6;i++)
@@ -235,4 +205,4 @@ namespace costmap_depth_camera
   return false;
   }
 
-} /// namespace costmap_depth_camera
+} /// namespace nav2_costmap_2d

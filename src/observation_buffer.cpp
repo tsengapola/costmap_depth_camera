@@ -35,17 +35,17 @@
  * Author: Apola
  *********************************************************************/
 #include <rclcpp/rclcpp.hpp>
-#include <costmap_depth_camera/observation_buffer.h>
+#include <nav2_costmap_2d/observation_buffer_depth.h>
 #include <pcl_ros/transforms.hpp>
 
 using namespace std;
 using namespace tf2;
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
   using namespace std::chrono_literals;
 
-ObservationBuffer::ObservationBuffer(string topic_name,
+ObservationBufferDepth::ObservationBufferDepth(string topic_name,
                                      double observation_keep_time,
                                      double expected_update_rate,
                                      double min_obstacle_height,
@@ -83,14 +83,14 @@ ObservationBuffer::ObservationBuffer(string topic_name,
 {
 }
 
-ObservationBuffer::~ObservationBuffer()
+ObservationBufferDepth::~ObservationBufferDepth()
 {
 }
 
-void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
+void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
 {
   // create a new observation on the list to be populated
-  observation_list_.push_front(Observation());
+  observation_list_.push_front(ObservationDepth());
 
   // check whether the origin frame has been set explicitly or whether we should get it from the cloud
   string origin_frame = sensor_frame_ == "" ? cloud.header.frame_id : sensor_frame_;
@@ -103,12 +103,22 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
   /// For debugging only
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ global frame: " << global_frame_.c_str());
   //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ local frame: " << origin_frame.c_str());
+  
+  /// Check the cloud size 
+  pcl::PointCloud<pcl::PointXYZI>::Ptr rawcloud(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromROSMsg(cloud, *rawcloud);
+  if(rawcloud->size() >20000)
+  {
+    RCLCPP_ERROR_STREAM(logger_, "Raw cloud size " << rawcloud->size() <<" is larger than 20000 points. Exiting.. ");
+    return;
+  }
+  
 
   try
   {
     // given these observations come from sensors... we'll need to store the origin pt of the sensor
     geometry_msgs::msg::TransformStamped T_S_C_msg;
-    T_S_C_msg = tf2_buffer_.lookupTransform(origin_frame, global_frame_, tf2::TimePointZero, tf2::durationFromSec(0.5));
+    T_S_C_msg = tf2_buffer_.lookupTransform(global_frame_, origin_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
     observation_list_.front().origin_.x = T_S_C_msg.transform.translation.x;
     observation_list_.front().origin_.y = T_S_C_msg.transform.translation.y;
     observation_list_.front().origin_.z = T_S_C_msg.transform.translation.z;
@@ -147,38 +157,6 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_z(*global_frame_cloud, "z");
-    
-    /// Adaptive update of maximum/minimum obstacle height
-    /*
-    rclcpp::Time t_now = cloud.header.stamp;
-    if(!adapt_height_init_)
-    {
-      adapt_height_cout_prev_time_ = t_now;
-      adapt_height_init_ = true;
-    }
-
-    std::string baselink_frame = "base_link";
-    geometry_msgs::msg::TransformStamped global_to_baselink;
-    try
-    {
-      global_to_baselink = tf2_buffer_.lookupTransform(global_frame_, baselink_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
-    } catch (tf2::TransformException & ex)
-    {
-      RCLCPP_ERROR(logger_, "Something wrong to find transform from global frame to baselink: %s", ex.what());
-    }
-
-    //min_obstacle_height_ = 0.2 + global_to_baselink.transform.translation.z;
-    //max_obstacle_height_ = 2.0 + global_to_baselink.transform.translation.z;
-
-    if(t_now.nanoseconds()-adapt_height_cout_prev_time_.nanoseconds()>adpat_height_cout_time_nsec_)
-    {
-      adapt_height_cout_prev_time_ = t_now;
-      RCLCPP_INFO_STREAM(logger_," Global to baselink height: " <<  global_to_baselink.transform.translation.z <<
-                                 " Min height: " << min_obstacle_height_ <<
-                                 " Max height: " << max_obstacle_height_);
-    }
-    */
-
 
     for (; iter_x !=iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
     {
@@ -193,10 +171,16 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
       }
     }
 
+    if(observation_list_.front().cloud_->size() >10000)
+    {
+      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_list_.front().cloud_->size() <<" is larger than 5000 points. Exiting.. ");
+      return;
+    }
+
     pcl_conversions::toPCL(clock_->now(), observation_list_.front().cloud_->header.stamp);
     observation_list_.front().cloud_->header.frame_id = global_frame_;
 
-    ///RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ observation cloud size: " << observation_list_.front().cloud_->size());
+    ///RCLCPP_WARN_STREAM(logger_, "++++++observation cloud size: " << observation_list_.front().cloud_->size() << ", count: " << tmp_count);
   }
   catch (TransformException& ex)
   {
@@ -215,25 +199,25 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
 }
 
 // returns a copy of the observations
-void ObservationBuffer::getObservations(vector<Observation>& observations)
+void ObservationBufferDepth::getObservations(vector<ObservationDepth>& observations)
 {
  
   // first... let's make sure that we don't have any stale observations
   purgeStaleObservations();
 
   // now we'll just copy the observations for the caller
-  list<Observation>::iterator obs_it;
+  list<ObservationDepth>::iterator obs_it;
   for (obs_it = observation_list_.begin(); obs_it != observation_list_.end(); ++obs_it)
   {
     observations.push_back(*obs_it);
   }
 }
 
-void ObservationBuffer::purgeStaleObservations()
+void ObservationBufferDepth::purgeStaleObservations()
 {
   if (!observation_list_.empty())
   {
-    list<Observation>::iterator obs_it = observation_list_.begin();
+    list<ObservationDepth>::iterator obs_it = observation_list_.begin();
     // if we're keeping observations for no time... then we'll only keep one observation
     if (observation_keep_time_ == rclcpp::Duration(rclcpp::Duration::from_seconds(0.0)))
     {
@@ -244,7 +228,7 @@ void ObservationBuffer::purgeStaleObservations()
     // otherwise... we'll have to loop through the observations to see which ones are stale
     for (obs_it = observation_list_.begin(); obs_it != observation_list_.end(); ++obs_it)
     {
-      costmap_depth_camera::Observation& obs = *obs_it;
+      nav2_costmap_2d::ObservationDepth& obs = *obs_it;
       
       const rclcpp::Duration time_diff = last_updated_ - pcl_conversions::fromPCL(obs.cloud_->header).stamp;
       
@@ -257,7 +241,7 @@ void ObservationBuffer::purgeStaleObservations()
   }
 }
 
-bool ObservationBuffer::isCurrent() const
+bool ObservationBufferDepth::isCurrent() const
 {
   
   /// A quick hack
@@ -277,11 +261,10 @@ bool ObservationBuffer::isCurrent() const
   return current;
 }
 
-void ObservationBuffer::resetLastUpdated()
+void ObservationBufferDepth::resetLastUpdated()
 {
 
   last_updated_ = clock_->now();
 }
 
-}  // namespace costmap_depth_camera
-
+}  // namespace nav2_costmap_2d

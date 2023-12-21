@@ -121,34 +121,25 @@ install(TARGETS ${library_name}
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-# install(DIRECTORY example
-#   DESTINATION share/${PROJECT_NAME}
-# )
+install(DIRECTORY include/
+  DESTINATION include/
+)
 
 install(FILES costmap_plugins.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Install launch
-# install(DIRECTORY
-#   launch
-#   DESTINATION share/${PROJECT_NAME}
-# )
+# Install folder
+install(DIRECTORY
+  launch
+  params
+  map
+  rviz
+  DESTINATION share/${PROJECT_NAME}
+)
 
-# Install params
-# install(DIRECTORY
-#   params
-#   DESTINATION share/${PROJECT_NAME}
-# )
-
-# Install rviz
-# install(DIRECTORY
-#   rviz
-#   DESTINATION share/${PROJECT_NAME}
-# )
-
-#ament_export_dependencies(rosidl_default_runtime)
-pluginlib_export_plugin_description_file(costmap_depth_camera costmap_plugins.xml)
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME})
+ament_export_libraries(${library_name})
+ament_export_dependencies(${dependencies})
+pluginlib_export_plugin_description_file(costmap_depth_camera costmap_plugins.xml)
 ament_package()

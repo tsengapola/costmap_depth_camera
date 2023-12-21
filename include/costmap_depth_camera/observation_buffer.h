@@ -52,18 +52,18 @@
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 // Observation
-#include <costmap_depth_camera/observation.h>
+#include <nav2_costmap_2d/observation_depth.h>
 
 // Thread support
 #include <boost/thread.hpp>
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
 /**
- * @class ObservationBuffer
+ * @class ObservationBufferDepth
  * @brief Takes in point clouds from sensors, transforms them to the desired frame, and stores them
  */
-class ObservationBuffer
+class ObservationBufferDepth
 {
 public:
   typedef std::unique_ptr<sensor_msgs::msg::PointCloud2> point_cloud_ptr;
@@ -81,7 +81,7 @@ public:
    * @param  sensor_frame The frame of the origin of the sensor, can be left blank to be read from the messages
    * @param  tf_tolerance The amount of time to wait for a transform to be available when setting a new global frame
    */
-  ObservationBuffer(std::string topic_name,
+  ObservationBufferDepth(std::string topic_name,
                     double observation_keep_time,
                     double expected_update_rate,
                     double min_obstacle_height,
@@ -102,7 +102,7 @@ public:
   /**
    * @brief  Destructor... cleans up
    */
-  ~ObservationBuffer();
+  ~ObservationBufferDepth();
 
   /**
    * @brief  Transforms a PointCloud to the global frame and buffers it
@@ -115,7 +115,7 @@ public:
    * @brief  Pushes copies of all current observations onto the end of the vector passed in
    * @param  observations The vector to be filled
    */
-  void getObservations(std::vector<Observation>& observations);
+  void getObservations(std::vector<ObservationDepth>& observations);
 
   /**
    * @brief  Check if the observation buffer is being update at its expected rate
@@ -170,7 +170,7 @@ private:
   rclcpp::Logger logger_;
 
 
-  std::list<Observation> observation_list_;
+  std::list<ObservationDepth> observation_list_;
   boost::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
 
   /// Adaotive height change
@@ -181,5 +181,5 @@ private:
    
   
 };
-}  // namespace costmap_depth_camera
+}  // namespace nav2_costmap_2d
 #endif  // COSTMAP_DEPTH_CAMERA_OBSERVATION_BUFFER_H_

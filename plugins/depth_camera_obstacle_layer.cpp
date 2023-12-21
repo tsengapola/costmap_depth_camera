@@ -38,25 +38,27 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
-#include <costmap_depth_camera/depth_camera_obstacle_layer.h>
-#include <costmap_depth_camera/frustum_utils.hpp>
+#include <nav2_costmap_2d/depth_camera_obstacle_layer.h>
+#include <nav2_costmap_2d/frustum_utils.hpp>
 #include <tf2_ros/message_filter.h>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 using nav2_costmap_2d::NO_INFORMATION;
 using nav2_costmap_2d::LETHAL_OBSTACLE;
 using nav2_costmap_2d::FREE_SPACE;
-using costmap_depth_camera::ObservationBuffer;
-using costmap_depth_camera::Observation;
+using nav2_costmap_2d::ObservationBufferDepth;
+using nav2_costmap_2d::ObservationDepth;
 
 #define DEBUG 0
 
-namespace costmap_depth_camera
+namespace nav2_costmap_2d
 {
   /////////////////////////////////////////////////////////////////
   DepthCameraObstacleLayer::DepthCameraObstacleLayer(void)
   ////////////////////////////////////////////////////////////////
   {
+    //supress the no intensity found log
+    pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
     //costmap_ = NULL;
   }
   
@@ -69,10 +71,12 @@ namespace costmap_depth_camera
   ///////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::onInitialize(void)
   {
+    restricted_ = false;
     RCLCPP_INFO(logger_, "%s being initialized as DepthCameraObstacleLayer!", getName().c_str());
     
     auto node = node_.lock();
     rolling_window_ = layered_costmap_->isRolling();
+    has_costmap_initial_ = false;
 
     bool track_unknown_space;
     declareParameter("track_unknown_space", rclcpp::ParameterValue(layered_costmap_->isTrackingUnknown()));
@@ -222,7 +226,7 @@ namespace costmap_depth_camera
                             source.c_str(), topic.c_str(),sensor_frame.c_str());
 
       /// create an observation buffer
-      observation_buffers_.push_back(std::shared_ptr <ObservationBuffer> (new ObservationBuffer(
+      observation_buffers_.push_back(std::shared_ptr <ObservationBufferDepth> (new ObservationBufferDepth(
         topic,
         observation_keep_time,
         expected_update_rate,
@@ -277,7 +281,7 @@ namespace costmap_depth_camera
         tf2::durationFromSec(0.2)));
 
       filter->registerCallback(
-        boost::bind(&DepthCameraObstacleLayer::pointCloud2Callback, this, _1, observation_buffers_.back()));
+        std::bind(&DepthCameraObstacleLayer::pointCloud2Callback, this, std::placeholders::_1, observation_buffers_.back()));
 
       observation_subscribers_.push_back(sub);
       observation_notifiers_.push_back(filter);
@@ -293,11 +297,19 @@ namespace costmap_depth_camera
       }
 
     }
+
+    enable_obstacle_layer_sub_ = node->create_subscription<std_msgs::msg::Bool>("/enable_obstacle_layer", rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable(),
+                            std::bind(&DepthCameraObstacleLayer::enableObstacleLayerCB, this, std::placeholders::_1));
+
     RCLCPP_WARN(logger_,"++++++++++++++++++++++++++++++++++++++++++++++++++++");
     RCLCPP_WARN(logger_, "%s initialization complete!", getName().c_str());
     RCLCPP_WARN(logger_,"++++++++++++++++++++++++++++++++++++++++++++++++++++");
     enabled_ = true;
     footprint_clearing_enabled_=true;
+  }
+
+  void DepthCameraObstacleLayer::enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg){
+    restricted_ = !msg->data;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////
@@ -316,8 +328,9 @@ namespace costmap_depth_camera
 
     useExtraBounds(min_x, min_y, max_x, max_y);
     
-    /// Example: Spatio-Temporal-VoxelLayer::UpdateROSCost()
-    Costmap2D::resetMaps(); /// See again in Navigation 2 layered costmap. They donot reset it!! 
+    if(!has_costmap_initial_){
+      return;
+    }
 
     //RCLCPP_INFO(logger_,"ec distance: %.2f",ec_seg_distance_);
     //RCLCPP_INFO(logger_,"ec seg min size: %.d",ec_cluster_min_size_);
@@ -325,7 +338,7 @@ namespace costmap_depth_camera
     //RCLCPP_INFO(logger_,"check radius: %.2f",check_radius_);
 
     bool current = true;
-    std::vector<Observation> observations, clearing_observations;
+    std::vector<ObservationDepth> observations, clearing_observations;
 
     /// get the marking observations
     current = current && getMarkingObservations(observations);
@@ -341,9 +354,9 @@ namespace costmap_depth_camera
 
     ///combine all pointcloud from all observations
     pcl::PointCloud<pcl::PointXYZI>::Ptr combined_observations(new pcl::PointCloud<pcl::PointXYZI>);
-    for (std::vector<costmap_depth_camera::Observation>::const_iterator it = observations.begin(); it != observations.end(); ++it)
+    for (std::vector<nav2_costmap_2d::ObservationDepth>::const_iterator it = observations.begin(); it != observations.end(); ++it)
     {
-      const costmap_depth_camera::Observation& obs = *it;
+      const nav2_costmap_2d::ObservationDepth& obs = *it;
       *combined_observations += *(obs.cloud_);
     }
 
@@ -383,7 +396,7 @@ namespace costmap_depth_camera
           cloud_clustered2pub->push_back(i_pt);
         } 
         intensity_cnt += 100;
-        if(cloud_cluster->points.size()<=size_of_cluster_rejection_)
+        if(cloud_cluster->points.size()<=(unsigned int)size_of_cluster_rejection_)
         {
           ///Do not add into markings
           continue;
@@ -392,7 +405,7 @@ namespace costmap_depth_camera
         cloud_cluster->height = 1;
         cloud_cluster->is_dense = true;
         /// Put everything in the map (pc_3d_map_global_)
-        ProcessCluster(observations, cloud_cluster, robot_x, robot_y, min_x, min_y, max_x, max_y);
+        ProcessCluster(observations, cloud_cluster, min_x, min_y, max_x, max_y);
       }  
       /// Publish clustered pointcloud
       if(cluster_pub_->get_subscription_count()>0)
@@ -417,8 +430,22 @@ namespace costmap_depth_camera
     {
       return;
     }
-      
-    unsigned char* master_array = master_grid.getCharMap();
+
+    if(!has_costmap_initial_){
+
+      Costmap2D * master = layered_costmap_->getCostmap();
+      auto size_x = master->getSizeInCellsX();
+      auto size_y = master->getSizeInCellsY();
+      has_costmap_initial_ = true;
+      RCLCPP_WARN(logger_.get_child(name_), "%u, %u", size_x, size_y);
+      resizeMap(
+        master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
+        master->getOriginX(), master->getOriginY());
+    }
+    
+    if(restricted_)
+      return;
+
     unsigned int mx, my; 
 
     if(!use_global_frame_to_mark_)
@@ -428,12 +455,17 @@ namespace costmap_depth_camera
         indexToCells((*it_3d_map).first, mx, my);
 
         ///mx+1/mx-1 check is used to solve an issue of rounding problem, due to rounding may shift the index 1 step ahead
-        if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty())
+        if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1))
         {
           unsigned int index = getIndex(mx,my);
-          //master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
-          costmap_[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]);
-          ++it_3d_map;
+          if((*it_3d_map).second.empty()){
+            costmap_[index] = nav2_costmap_2d::FREE_SPACE;
+            ++it_3d_map;
+          }
+          else{
+            costmap_[index] = nav2_costmap_2d::LETHAL_OBSTACLE;
+            ++it_3d_map;
+          }
         }
         else
         {
@@ -458,12 +490,18 @@ namespace costmap_depth_camera
         }   
         
         /// mx+1/mx-1 check is used to solve an issue of rounding problem, due to rounding may shift the index 1 step ahead
-        if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1) && !(*it_3d_map).second.empty())
+        if(isValid(mx-1,my-1) && isValid(mx-1,my+1) && isValid(mx+1,my-1) && isValid(mx+1,my+1))
         {
           unsigned int index = getIndex(mx,my);
-          //master_array[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]); //change index to global
-          costmap_[index] = std::max(nav2_costmap_2d::LETHAL_OBSTACLE, master_array[index]);
-          ++it_3d_map;
+          if((*it_3d_map).second.empty()){
+            costmap_[index] = nav2_costmap_2d::FREE_SPACE;
+            ++it_3d_map;
+          }
+          else{
+            costmap_[index] = nav2_costmap_2d::LETHAL_OBSTACLE;
+            ++it_3d_map;
+          }
+
         }
         else
         {
@@ -477,7 +515,7 @@ namespace costmap_depth_camera
       setConvexPolygonCost(transformed_footprint_, nav2_costmap_2d::FREE_SPACE);
     }
 
-    switch (combination_method_)
+    switch (1)
     {
       case 0:  // Overwrite
         updateWithOverwrite(master_grid, min_i, min_j, max_i, max_j);
@@ -527,6 +565,7 @@ namespace costmap_depth_camera
       }
     }
     pc_3d_map_.clear();
+    pc_3d_map_global_.clear();
   }
 
   void DepthCameraObstacleLayer::reset(void)
@@ -541,7 +580,7 @@ namespace costmap_depth_camera
 
   /////////////////////////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::pointCloud2Callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& message,
-                                                     const std::shared_ptr<ObservationBuffer>& buffer)
+                                                     const std::shared_ptr<ObservationBufferDepth>& buffer)
   {
     /// buffer the point cloud
     buffer->lock();
@@ -551,7 +590,7 @@ namespace costmap_depth_camera
   }
 
   //////////////////////////////////////////////////////////////////////////////////
-  void DepthCameraObstacleLayer::addStaticObservation(costmap_depth_camera::Observation& obs,
+  void DepthCameraObstacleLayer::addStaticObservation(nav2_costmap_2d::ObservationDepth& obs,
                                                       bool marking,
                                                       bool clearing)
   {
@@ -581,7 +620,7 @@ namespace costmap_depth_camera
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
-  bool DepthCameraObstacleLayer::getMarkingObservations(std::vector<Observation>& marking_observations) const
+  bool DepthCameraObstacleLayer::getMarkingObservations(std::vector<ObservationDepth>& marking_observations) const
   {
     bool current = true;
     
@@ -600,7 +639,7 @@ namespace costmap_depth_camera
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
-  bool DepthCameraObstacleLayer::getClearingObservations(std::vector<Observation>& clearing_observations) const
+  bool DepthCameraObstacleLayer::getClearingObservations(std::vector<ObservationDepth>& clearing_observations) const
   {
 
     bool current = true;
@@ -636,13 +675,13 @@ namespace costmap_depth_camera
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
-  void DepthCameraObstacleLayer::pubFrustum(std::vector<costmap_depth_camera::Observation>& observations)
+  void DepthCameraObstacleLayer::pubFrustum(std::vector<nav2_costmap_2d::ObservationDepth>& observations)
   {
     pcl::PointCloud<pcl::PointXYZI>::Ptr pub_frustum(new pcl::PointCloud<pcl::PointXYZI>);
     int cnt = 1;
-    for (std::vector<costmap_depth_camera::Observation>::const_iterator it = observations.begin(); it != observations.end(); ++it)
+    for (std::vector<nav2_costmap_2d::ObservationDepth>::const_iterator it = observations.begin(); it != observations.end(); ++it)
     {
-      const costmap_depth_camera::Observation& obs = *it;
+      const nav2_costmap_2d::ObservationDepth& obs = *it;
       for (unsigned int i = 0; i < obs.frustum_->size(); ++i)
       {
         ///Transform from pcl::XYZ to pcl::XYZI,
@@ -666,13 +705,10 @@ namespace costmap_depth_camera
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
-                                                      std::vector<costmap_depth_camera::Observation>& observations,
+                                                      std::vector<nav2_costmap_2d::ObservationDepth>& observations,
                                                       double robot_x, double robot_y)
   {
-    unsigned int mx, my;
-    double wx,wy;
-    unsigned int index;
-    int mmx, mmy;
+    
     pcl::PointXYZI searchPoint;
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr marking(new pcl::PointCloud<pcl::PointXYZI>);
@@ -684,7 +720,7 @@ namespace costmap_depth_camera
     bool bypass_clearing = false;
     if(enable_near_blocked_protection_)
     {
-      if(cloud_in->points.size()<number_points_considered_as_blocked_)
+      if(cloud_in->points.size()<(unsigned int)number_points_considered_as_blocked_)
       {
         /// ToDo: confirm that the clk works!!
         //auto& clk = *this->get_clock();
@@ -722,6 +758,8 @@ namespace costmap_depth_camera
 
     if(!use_global_frame_to_mark_)
     {
+      unsigned int mx, my;
+      double wx,wy;
       ///Iterate marking
       for(auto it_3d_map=pc_3d_map_.begin();it_3d_map!=pc_3d_map_.end();it_3d_map++)
       {
@@ -730,11 +768,10 @@ namespace costmap_depth_camera
 
         bool is_in_FRUSTUM = false;
         bool is_attach_FRUSTUM = false;
-        bool is_check_clear = false;
         /// if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
         if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub)
         {
-          RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
+          RCLCPP_DEBUG(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
           continue;
         }
 
@@ -746,9 +783,7 @@ namespace costmap_depth_camera
           searchPoint.z = (*it).first*voxel_resolution_;
           searchPoint.intensity = (*it).second;
 
-          #if(DEBUG)
-          RCLCPP_WARN(logger_,"[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
-          #endif
+          //RCLCPP_WARN(logger_,"[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
           
           if(is_marking_sub)
           {
@@ -759,8 +794,7 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-          std::vector<std::pair<double,double>> distance_to_plane;
-          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
+          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);
           
           #if(DEBUG)
           RCLCPP_WARN(logger_,"[Clearing: before check] x,y,z: %f,%f,%f ----- %d, %d",searchPoint.x,searchPoint.y,searchPoint.z, is_in_FRUSTUM, is_attach_FRUSTUM);
@@ -796,7 +830,7 @@ namespace costmap_depth_camera
           } 
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
           {
-            (*it_3d_map).second.erase(it);
+            //(*it_3d_map).second.erase(it);
           }
           else 
           {
@@ -814,18 +848,18 @@ namespace costmap_depth_camera
     }
     else
     {
+      double wx,wy;
       ///Iterate marking in global frame marking mode
       for(auto it_3d_map=pc_3d_map_global_.begin();it_3d_map!=pc_3d_map_global_.end();it_3d_map++)
       {  
         intIndexToWorld(wx, wy, (*it_3d_map).first.first, (*it_3d_map).first.second, layered_costmap_->getCostmap()->getResolution());
         bool is_in_FRUSTUM = false;
         bool is_attach_FRUSTUM = false;
-        bool is_check_clear = false;
         
         ///if marked point cloud is n meters from robot, we just skip, because it is out of our frustum 
         if(hypot(wx-robot_x,wy-robot_y)>10.0 && !is_marking_sub)
         {
-          RCLCPP_WARN(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
+          RCLCPP_DEBUG(logger_,"Marked pointcloud is greater 10m and therefore out of frustum.");
           continue;
         }
 
@@ -837,12 +871,8 @@ namespace costmap_depth_camera
           searchPoint.y = wy;
           searchPoint.z = (*it).first*voxel_resolution_;
           searchPoint.intensity = (*it).second;
-
-          #if(DEBUG)
-          RCLCPP_WARN(logger_,"+[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
-          #endif
-
-          //RCLCPP_WARN_STREAM(logger_,"search (x,y,z): (" << searchPoint.x << "," << searchPoint.y << "," << searchPoint.z << ")");
+          
+          //RCLCPP_WARN(logger_,"+[Clearing: before check] x,y,z: %f,%f,%f ",searchPoint.x,searchPoint.y,searchPoint.z);
 
           if(is_marking_sub)
           {
@@ -853,8 +883,7 @@ namespace costmap_depth_camera
           pointRadiusSquaredDistance.clear();
           double pc_dis = hypot(wx-robot_x,wy-robot_y);
           is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-          std::vector<std::pair<double,double>> distance_to_plane;
-          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
+          is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);
 
           if(is_in_FRUSTUM && clear_all_marking_in_this_frame)
           {
@@ -879,7 +908,7 @@ namespace costmap_depth_camera
           }
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
           {
-            (*it_3d_map).second.erase(it);
+            //(*it_3d_map).second.erase(it);
           }
           else 
           {
@@ -904,48 +933,20 @@ namespace costmap_depth_camera
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
-  void DepthCameraObstacleLayer::ProcessCluster(std::vector<costmap_depth_camera::Observation>& observations,
+  void DepthCameraObstacleLayer::ProcessCluster(std::vector<nav2_costmap_2d::ObservationDepth>& observations,
                                                 pcl::PointCloud<pcl::PointXYZI>::Ptr &cluster_cloud, 
-                                                double robot_x, double robot_y, double* min_x, 
-                                                double* min_y, double* max_x, double* max_y)
+                                                double* min_x, double* min_y, double* max_x, double* max_y)
   {
     geometry_msgs::msg::Point pt;
 
     unsigned int mx, my;
     double wx,wy;
-    unsigned int index;
     int mmx, mmy;
   
     ///Prepare for frustum_utils
-    FrustumUtils frustum_utils(&observations);
-
-    /// Test points
-    //int conversion_error_cnt=0;
-    #if(0)
-    pcl::PointCloud<pcl::PointXYZI>::Ptr tmp_cluster_cloud(new pcl::PointCloud<pcl::PointXYZI>);
-    tmp_cluster_cloud->clear();
-
-    pcl::PointXYZI tmp_pt;
-    tmp_pt.x = -3.200000; tmp_pt.y = -2.600000; tmp_pt.z = 0.540000;
-    tmp_cluster_cloud->push_back(tmp_pt);
+    FrustumUtils frustum_utils(&observations); 
     
-    tmp_pt.x = -3.350000; tmp_pt.y = -2.350000; tmp_pt.z = 0.240000;
-    tmp_cluster_cloud->push_back(tmp_pt);
-
-    tmp_pt.x = -3.400000; tmp_pt.y = -2.750000; tmp_pt.z = 0.570000;
-    tmp_cluster_cloud->push_back(tmp_pt);
-
-    tmp_pt.x = -3.600000; tmp_pt.y = -1.600000; tmp_pt.z =0.220000;
-    tmp_cluster_cloud->push_back(tmp_pt);
-    
-    tmp_pt.x = -3.900000; tmp_pt.y =-2.750000; tmp_pt.z =0.640000;
-    tmp_cluster_cloud->push_back(tmp_pt);
-
-    tmp_pt.x = -4.000000; tmp_pt.y = -3.150000; tmp_pt.z =0.770000;
-    tmp_cluster_cloud->push_back(tmp_pt);
-    #endif   
-    
-    for(int i=0;i<cluster_cloud->points.size();i++)
+    for(unsigned int i=0;i<cluster_cloud->points.size();i++)
     {
       //RCLCPP_WARN_STREAM(logger_, "Test point (x,y,z): " << tmp_cluster_cloud->points[i].x << ","<<tmp_cluster_cloud->points[i].y <<","<<tmp_cluster_cloud->points[i].z);
   
@@ -963,8 +964,7 @@ namespace costmap_depth_camera
       searchPoint.z = cluster_cloud->points[i].z;
 
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
-      std::vector<std::pair<double,double>> distance_to_plane;
-      bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint, distance_to_plane);
+      bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);
       
       // for(unsigned int k=0; i<distance_to_plane.size(); k++)
       // {
@@ -993,7 +993,7 @@ namespace costmap_depth_camera
 
         int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
         
-        if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        if(h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
         {
           continue;
         }
@@ -1020,7 +1020,7 @@ namespace costmap_depth_camera
 
         /// check height which should be the same as what we did
         int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-        if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        if(h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
         {
           continue;
         }
@@ -1071,8 +1071,8 @@ namespace costmap_depth_camera
     wy = my * resolution;
   }
 
-}  // namespace costmap_depth_camera
+}  // namespace nav2_costmap_2d
 
 // Register the macro for this layer
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(costmap_depth_camera::DepthCameraObstacleLayer, nav2_costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(nav2_costmap_2d::DepthCameraObstacleLayer, nav2_costmap_2d::Layer)
