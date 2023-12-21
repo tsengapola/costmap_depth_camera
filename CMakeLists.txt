@@ -135,6 +135,7 @@ install(DIRECTORY
   params
   map
   rviz
+  bag
   DESTINATION share/${PROJECT_NAME}
 )
 
