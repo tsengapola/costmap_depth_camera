@@ -37,7 +37,7 @@
 #ifndef COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
 #define COSTMAP_DEPTH_CAMERA_FRUSTUM_UTILS_H_
 
-#include <nav2_costmap_2d/observation_buffer_depth.h>
+#include <costmap_depth_camera/observation_buffer.h>
 namespace nav2_costmap_2d
 {
   class FrustumUtils

@@ -35,7 +35,7 @@
  * Author: Apola
  *********************************************************************/
 #include <rclcpp/rclcpp.hpp>
-#include <nav2_costmap_2d/observation_buffer_depth.h>
+#include <costmap_depth_camera/observation_buffer.h>
 #include <pcl_ros/transforms.hpp>
 
 using namespace std;
@@ -117,6 +117,7 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
   try
   {
     // given these observations come from sensors... we'll need to store the origin pt of the sensor
+    observation_list_.front().frame_id_ = cloud.header.frame_id;
     geometry_msgs::msg::TransformStamped T_S_C_msg;
     T_S_C_msg = tf2_buffer_.lookupTransform(global_frame_, origin_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
     observation_list_.front().origin_.x = T_S_C_msg.transform.translation.x;

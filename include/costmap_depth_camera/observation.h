@@ -81,6 +81,7 @@ public:
   std::vector<Eigen::Vector4f> frustum_plane_equation_;
 
   /// These parameter is essential for depth camera
+  std::string frame_id_;
   double FOV_V_;
   double FOV_W_;
   double min_detect_distance_;

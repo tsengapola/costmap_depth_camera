@@ -28,7 +28,6 @@ find_package(visualization_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(pcl_ros REQUIRED)
 # find_package(rosidl_default_generators REQUIRED)
-#find_package(std_srvs REQUIRED)
 
 #find_package(OpenVDB REQUIRED)
 #remove_definitions(-DDISABLE_LIBUSB-1.0)
@@ -58,8 +57,6 @@ set(dependencies
   pluginlib
   sensor_msgs
   std_msgs
-  #std_srvs
-  #laser_geometry
   message_filters
   pcl_conversions
   rclcpp
@@ -74,13 +71,6 @@ set(dependencies
 set(library_name costmap_depth_camera_core)
 
 add_definitions(${EIGEN3_DEFINITIONS})
-
-#set(srv_files "srv/SaveGrid.srv")
-#rosidl_generate_interfaces(${PROJECT_NAME}
-#  ${srv_files}
-#  DEPENDENCIES builtin_interfaces std_msgs
-#)
-#rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 
 include_directories(
     include
@@ -97,9 +87,6 @@ add_library(${library_name} SHARED
             src/observation_buffer.cpp
             plugins/depth_camera_obstacle_layer.cpp
 )
-
-target_link_libraries(${library_name} "${cpp_typesupport_target}")
-target_compile_definitions(${library_name} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 target_link_libraries(${library_name}
   ${Boost_LIBRARIES}
@@ -125,7 +112,7 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
-install(FILES costmap_plugins.xml
+install(FILES depth_camera_costmap_plugins.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -142,5 +129,5 @@ install(DIRECTORY
 ament_export_include_directories(include)
 ament_export_libraries(${library_name})
 ament_export_dependencies(${dependencies})
-pluginlib_export_plugin_description_file(costmap_depth_camera costmap_plugins.xml)
+pluginlib_export_plugin_description_file(nav2_costmap_2d depth_camera_costmap_plugins.xml)
 ament_package()

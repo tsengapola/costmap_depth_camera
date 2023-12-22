@@ -52,7 +52,7 @@
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 // Observation
-#include <nav2_costmap_2d/observation_depth.h>
+#include <costmap_depth_camera/observation.h>
 
 // Thread support
 #include <boost/thread.hpp>

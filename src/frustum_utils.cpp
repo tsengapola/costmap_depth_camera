@@ -35,7 +35,7 @@
  * Author: Apola
  *********************************************************************/
 
-#include <nav2_costmap_2d/frustum_utils.hpp>
+#include <costmap_depth_camera/frustum_utils.hpp>
 #define DEBUG 0
 
 namespace nav2_costmap_2d

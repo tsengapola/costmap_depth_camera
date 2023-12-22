@@ -38,8 +38,8 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
-#include <nav2_costmap_2d/depth_camera_obstacle_layer.h>
-#include <nav2_costmap_2d/frustum_utils.hpp>
+#include <costmap_depth_camera/depth_camera_obstacle_layer.h>
+#include <costmap_depth_camera/frustum_utils.hpp>
 #include <tf2_ros/message_filter.h>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
@@ -93,8 +93,8 @@ namespace nav2_costmap_2d
     ///Publishers for visualization
     auto pub_opt = rclcpp::PublisherOptions();
     auto sub_opt = rclcpp::SubscriptionOptions();
-
-    frustum_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("frustum", rclcpp::QoS(1), pub_opt);
+    
+    frustum_pub_ = node->create_publisher<visualization_msgs::msg::MarkerArray>("frustum", rclcpp::QoS(1), pub_opt);
     marking_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("marking_pc", rclcpp::QoS(1), pub_opt);
     cluster_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("clustered_pc", rclcpp::QoS(1), pub_opt);
 
@@ -361,7 +361,7 @@ namespace nav2_costmap_2d
     }
 
     ///Given combined pointcloud to clear the markings by kd-tree method
-    ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);
+    ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y, min_x, min_y, max_x, max_y);
 
     /// For cluster pub
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_clustered2pub(new pcl::PointCloud<pcl::PointXYZI>);
@@ -677,36 +677,95 @@ namespace nav2_costmap_2d
   ///////////////////////////////////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::pubFrustum(std::vector<nav2_costmap_2d::ObservationDepth>& observations)
   {
-    pcl::PointCloud<pcl::PointXYZI>::Ptr pub_frustum(new pcl::PointCloud<pcl::PointXYZI>);
-    int cnt = 1;
+
+    visualization_msgs::msg::MarkerArray frustums_marker_array;
+    int cnt = 0;
+
     for (std::vector<nav2_costmap_2d::ObservationDepth>::const_iterator it = observations.begin(); it != observations.end(); ++it)
     {
+      visualization_msgs::msg::Marker frustum_marker;
+      frustum_marker.header.frame_id = global_frame_;
+      frustum_marker.action = visualization_msgs::msg::Marker::ADD;
+      frustum_marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+      frustum_marker.pose.orientation.w = 1.0;
+      frustum_marker.ns = std::to_string(cnt);
+      frustum_marker.id = 0;
       const nav2_costmap_2d::ObservationDepth& obs = *it;
-      for (unsigned int i = 0; i < obs.frustum_->size(); ++i)
-      {
-        ///Transform from pcl::XYZ to pcl::XYZI,
-        ///so we can use intensity to distinguish different frustum (camera).
+      /* Note of frustum sequence -> TLNear: Top Left Near
+      TLNear = frustum_->points[0];
+      TRNear = frustum_->points[1];
+      BLNear = frustum_->points[2];
+      BRNear = frustum_->points[3];
+      TLFar = frustum_->points[4];
+      TRFar = frustum_->points[5];
+      BLFar = frustum_->points[6];
+      BRFar = frustum_->points[7];
+      */
 
-        pcl::PointXYZI rgb_pt;
-        rgb_pt.x = obs.frustum_->points[i].x;
-        rgb_pt.y = obs.frustum_->points[i].y;
-        rgb_pt.z = obs.frustum_->points[i].z;
-        rgb_pt.intensity = cnt*150;
-        //RCLCPP_DEBUG(logger_,"%.2f,%.2f,%.2f",rgb_pt.x,rgb_pt.y,rgb_pt.z);
-        pub_frustum->push_back(rgb_pt);
-      }
-      cnt++; 
+      frustum_marker.scale.x = 0.02;
+      frustum_marker.color.r = 0.1; frustum_marker.color.g = 0.1; frustum_marker.color.b = 0.7;
+      frustum_marker.color.a = 0.5;
+      geometry_msgs::msg::Point gpt1, gpt2;
+      gpt1.x = obs.frustum_->points[0].x; gpt1.y = obs.frustum_->points[0].y; gpt1.z = obs.frustum_->points[0].z; 
+      gpt2.x = obs.frustum_->points[1].x; gpt2.y = obs.frustum_->points[1].y; gpt2.z = obs.frustum_->points[1].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[2].x; gpt1.y = obs.frustum_->points[2].y; gpt1.z = obs.frustum_->points[2].z; 
+      gpt2.x = obs.frustum_->points[3].x; gpt2.y = obs.frustum_->points[3].y; gpt2.z = obs.frustum_->points[3].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[4].x; gpt1.y = obs.frustum_->points[4].y; gpt1.z = obs.frustum_->points[4].z; 
+      gpt2.x = obs.frustum_->points[5].x; gpt2.y = obs.frustum_->points[5].y; gpt2.z = obs.frustum_->points[5].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[6].x; gpt1.y = obs.frustum_->points[6].y; gpt1.z = obs.frustum_->points[6].z; 
+      gpt2.x = obs.frustum_->points[7].x; gpt2.y = obs.frustum_->points[7].y; gpt2.z = obs.frustum_->points[7].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[0].x; gpt1.y = obs.frustum_->points[0].y; gpt1.z = obs.frustum_->points[0].z; 
+      gpt2.x = obs.frustum_->points[4].x; gpt2.y = obs.frustum_->points[4].y; gpt2.z = obs.frustum_->points[4].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[1].x; gpt1.y = obs.frustum_->points[1].y; gpt1.z = obs.frustum_->points[1].z; 
+      gpt2.x = obs.frustum_->points[5].x; gpt2.y = obs.frustum_->points[5].y; gpt2.z = obs.frustum_->points[5].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[2].x; gpt1.y = obs.frustum_->points[2].y; gpt1.z = obs.frustum_->points[2].z; 
+      gpt2.x = obs.frustum_->points[6].x; gpt2.y = obs.frustum_->points[6].y; gpt2.z = obs.frustum_->points[6].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[3].x; gpt1.y = obs.frustum_->points[3].y; gpt1.z = obs.frustum_->points[3].z; 
+      gpt2.x = obs.frustum_->points[7].x; gpt2.y = obs.frustum_->points[7].y; gpt2.z = obs.frustum_->points[7].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[4].x; gpt1.y = obs.frustum_->points[4].y; gpt1.z = obs.frustum_->points[4].z; 
+      gpt2.x = obs.frustum_->points[6].x; gpt2.y = obs.frustum_->points[6].y; gpt2.z = obs.frustum_->points[6].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[5].x; gpt1.y = obs.frustum_->points[5].y; gpt1.z = obs.frustum_->points[5].z; 
+      gpt2.x = obs.frustum_->points[7].x; gpt2.y = obs.frustum_->points[7].y; gpt2.z = obs.frustum_->points[7].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[0].x; gpt1.y = obs.frustum_->points[0].y; gpt1.z = obs.frustum_->points[0].z; 
+      gpt2.x = obs.frustum_->points[2].x; gpt2.y = obs.frustum_->points[2].y; gpt2.z = obs.frustum_->points[2].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      gpt1.x = obs.frustum_->points[1].x; gpt1.y = obs.frustum_->points[1].y; gpt1.z = obs.frustum_->points[1].z; 
+      gpt2.x = obs.frustum_->points[3].x; gpt2.y = obs.frustum_->points[3].y; gpt2.z = obs.frustum_->points[3].z; 
+      frustum_marker.points.push_back(gpt1);
+      frustum_marker.points.push_back(gpt2);
+      frustums_marker_array.markers.push_back(frustum_marker);
+      cnt++;
+
     }
-    frustum_msg_ = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    pcl::toROSMsg(*pub_frustum, *frustum_msg_);
-    frustum_msg_->header.frame_id = global_frame_;
-    frustum_pub_->publish(*frustum_msg_);
+    frustum_pub_->publish(frustums_marker_array);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
                                                       std::vector<nav2_costmap_2d::ObservationDepth>& observations,
-                                                      double robot_x, double robot_y)
+                                                      double robot_x, double robot_y,
+                                                      double* min_x, double* min_y, double* max_x, double* max_y)
   {
     
     pcl::PointXYZI searchPoint;
@@ -812,6 +871,7 @@ namespace nav2_costmap_2d
             ///Nothing is detected, clear all markings.
             //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
+            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
@@ -819,6 +879,7 @@ namespace nav2_costmap_2d
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
+            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if (is_in_FRUSTUM && !bypass_clearing) 
           {
@@ -826,6 +887,7 @@ namespace nav2_costmap_2d
             {
               //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
+              touch(wx, wy, min_x, min_y, max_x, max_y);
             }
           } 
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
@@ -890,6 +952,7 @@ namespace nav2_costmap_2d
             ///Nothing is detected, clear all markings.
             //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
+            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
@@ -897,6 +960,7 @@ namespace nav2_costmap_2d
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
+            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if (is_in_FRUSTUM && !bypass_clearing) 
           {
@@ -904,6 +968,7 @@ namespace nav2_costmap_2d
             {
               //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
+              touch(wx, wy, min_x, min_y, max_x, max_y);
             }
           }
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)

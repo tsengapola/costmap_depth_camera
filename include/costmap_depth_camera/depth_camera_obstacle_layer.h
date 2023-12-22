@@ -56,13 +56,15 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 // observation buffer
-#include <nav2_costmap_2d/observation_buffer_depth.h>
-#include <nav2_costmap_2d/frustum_utils.hpp>
+#include <costmap_depth_camera/observation_buffer.h>
+#include <costmap_depth_camera/frustum_utils.hpp>
 
 // messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include "std_msgs/msg/bool.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 // tf
 #include <tf2_ros/message_filter.h>
@@ -145,11 +147,11 @@ namespace nav2_costmap_2d
   int combination_method_;
 
 private:
+  
   /// Publishers for debugging
   /// http://wiki.ros.org/pcl/Overview [publish pcl<T> without conversion]
   /// https://answers.ros.org/question/312587/generate-and-publish-pointcloud2-in-ros2/ [pcl to sensor_msgs]
-
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr frustum_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr frustum_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr marking_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
 
@@ -163,7 +165,8 @@ private:
   /// Clearing mechanism
   void ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
                             std::vector<nav2_costmap_2d::ObservationDepth>& observations,
-                            double robot_x, double robot_y);
+                            double robot_x, double robot_y,
+                            double* min_x, double* min_y, double* max_x, double* max_y);
 
   /// Marking mechanism
   void ProcessCluster(std::vector<nav2_costmap_2d::ObservationDepth>& observations,

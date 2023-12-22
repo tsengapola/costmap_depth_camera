@@ -35,7 +35,7 @@
  * Author: Apola
  *********************************************************************/
 #include <rclcpp/rclcpp.hpp>
-#include <nav2_costmap_2d/observation_depth.h>
+#include <costmap_depth_camera/observation.h>
 
 namespace nav2_costmap_2d
 {
