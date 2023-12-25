@@ -51,11 +51,19 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+
+//TF2
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
+
 // Observation
 #include <costmap_depth_camera/observation.h>
 
 // Thread support
 #include <boost/thread.hpp>
+
+/*This is for voxelized pc*/
+#include <pcl/filters/voxel_grid.h>
 
 namespace nav2_costmap_2d
 {
@@ -96,6 +104,7 @@ public:
                     double FOV_W,
                     double min_detect_distance,
                     double max_detect_distance,
+                    bool use_voxelized_observation,
                     rclcpp::Clock::SharedPtr clock,
                     rclcpp::Logger logger);
 
@@ -178,7 +187,8 @@ private:
   unsigned long adpat_height_cout_time_nsec_ = 10e9;
   bool adapt_height_init_ = false;
 
-   
+  ///Down size combined observations to save computation
+  bool use_voxelized_observation_; 
   
 };
 }  // namespace nav2_costmap_2d

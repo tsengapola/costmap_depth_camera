@@ -61,6 +61,7 @@
 
 // messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include "std_msgs/msg/bool.hpp"
 #include "visualization_msgs/msg/marker.hpp"
@@ -75,6 +76,7 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+
 
 /// References
 /// https://navigation.ros.org/plugin_tutorials/docs/writing_new_costmap2d_plugin.html
@@ -219,6 +221,10 @@ private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_obstacle_layer_sub_;
   void enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg);
   bool restricted_;
+
+  
+  ///Down size combined observations to save computation
+  bool use_voxelized_observation_;
 
 };      /// class DepthCameraObstacleLayer
 }       /// namespace nav2_costmap_2d 

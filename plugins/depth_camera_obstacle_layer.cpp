@@ -128,6 +128,8 @@ namespace nav2_costmap_2d
     declareParameter("use_global_frame_to_mark", rclcpp::ParameterValue(true));
     node->get_parameter(name_ + ".use_global_frame_to_mark", use_global_frame_to_mark_);
 
+    declareParameter("use_voxelized_observation", rclcpp::ParameterValue(true));
+    node->get_parameter(name_ + ".use_voxelized_observation", use_voxelized_observation_);    
 
     marking_height_under_ground_ = 100.0;
     marking_height_above_ground_ = -100.0;
@@ -242,6 +244,7 @@ namespace nav2_costmap_2d
         FOV_W,
         min_detect_distance,
         max_detect_distance,
+        use_voxelized_observation_,
         node->get_clock(),
         node->get_logger())));
 

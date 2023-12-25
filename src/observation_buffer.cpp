@@ -60,6 +60,7 @@ ObservationBufferDepth::ObservationBufferDepth(string topic_name,
                                      double FOV_W,
                                      double min_detect_distance,
                                      double max_detect_distance,
+                                     bool use_voxelized_observation,
                                      rclcpp::Clock::SharedPtr clock,
                                      rclcpp::Logger logger) 
 : tf2_buffer_(tf2_buffer)
@@ -78,8 +79,10 @@ ObservationBufferDepth::ObservationBufferDepth(string topic_name,
 , FOV_W_(FOV_W)
 , min_detect_distance_(min_detect_distance)
 , max_detect_distance_(max_detect_distance)
+, use_voxelized_observation_(use_voxelized_observation)
 , clock_(clock)
 , logger_(logger)
+
 {
 }
 
@@ -107,12 +110,20 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
   /// Check the cloud size 
   pcl::PointCloud<pcl::PointXYZI>::Ptr rawcloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(cloud, *rawcloud);
+
+  //voxelized pc to save computation
+  if(use_voxelized_observation_){
+    pcl::VoxelGrid<pcl::PointXYZI> ds_rawcloud;
+    ds_rawcloud.setLeafSize(0.05, 0.05, 0.05);
+    ds_rawcloud.setInputCloud(rawcloud);
+    ds_rawcloud.filter(*rawcloud);
+  }
+
   if(rawcloud->size() >20000)
   {
     RCLCPP_ERROR_STREAM(logger_, "Raw cloud size " << rawcloud->size() <<" is larger than 20000 points. Exiting.. ");
     return;
   }
-  
 
   try
   {

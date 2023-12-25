@@ -22,11 +22,11 @@
   <depend>builtin_interfaces</depend>
   <depend>nav2_costmap_2d</depend>
   <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>pluginlib</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
-  <!-- <depend>laser_geometry</depend> -->
   <depend>libpcl-all</depend>
   <depend>pcl_conversions</depend>
   <depend>rclcpp</depend>
@@ -36,9 +36,7 @@
   <depend>tf2_sensor_msgs</depend>
   <depend>visualization_msgs</depend>
   <depend>pcl_ros</depend>
-  <!-- <depend>libopenvdb-dev</depend> -->
-  <!-- <depend>libopenvdb</depend> -->
-  <!-- <depend>libopenexr-dev</depend> -->
+
 
   <!-- <test_depend>ament_lint_auto</test_depend> -->
   <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->

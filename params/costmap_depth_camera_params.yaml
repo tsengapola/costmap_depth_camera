@@ -27,6 +27,7 @@ global_costmap:
         number_clearing_threshold: 2
         enable_near_blocked_protection: False
         number_points_considered_as_blocked: 5
+        use_voxelized_observation: True
         observation_sources: left_depth_cam right_depth_cam
         left_depth_cam:
           sensor_frame: camera_left_link

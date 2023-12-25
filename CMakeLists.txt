@@ -16,6 +16,7 @@ find_package(nav2_costmap_2d REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 #find_package(laser_geometry REQUIRED)
 find_package(message_filters REQUIRED)
@@ -27,7 +28,6 @@ find_package(tf2_sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(pcl_ros REQUIRED)
-# find_package(rosidl_default_generators REQUIRED)
 
 #find_package(OpenVDB REQUIRED)
 #remove_definitions(-DDISABLE_LIBUSB-1.0)
@@ -56,6 +56,7 @@ set(dependencies
   geometry_msgs
   pluginlib
   sensor_msgs
+  nav_msgs
   std_msgs
   message_filters
   pcl_conversions
