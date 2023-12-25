@@ -124,6 +124,9 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     RCLCPP_ERROR_STREAM(logger_, "Raw cloud size " << rawcloud->size() <<" is larger than 20000 points. Exiting.. ");
     return;
   }
+  
+  sensor_msgs::msg::PointCloud2::SharedPtr ds_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+  pcl::toROSMsg(*rawcloud, *ds_cloud_msg);
 
   try
   {
@@ -164,7 +167,7 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
     //tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2::TimePointZero, tf2::durationFromSec(0.5));
-    tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
+    tf2::doTransform(*ds_cloud_msg, *global_frame_cloud, tf_stamped);
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
