@@ -1061,7 +1061,7 @@ namespace nav2_costmap_2d
 
         int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
         
-        if(h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        if(h_ind>(int)(marking_height_above_ground_/voxel_resolution_) || h_ind<(int)(marking_height_under_ground_/voxel_resolution_))
         {
           continue;
         }
@@ -1088,7 +1088,7 @@ namespace nav2_costmap_2d
 
         /// check height which should be the same as what we did
         int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-        if(h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+        if(h_ind>(int)(marking_height_above_ground_/voxel_resolution_) || h_ind<(int)(marking_height_under_ground_/voxel_resolution_))
         {
           continue;
         }
