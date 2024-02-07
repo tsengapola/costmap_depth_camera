@@ -486,7 +486,7 @@ void DepthCameraObstacleLayer::ProcessCluster(std::vector<costmap_depth_camera::
       unsigned int index = getIndex(mx,my);
 
       int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-      if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+      if(mx<0 || my<0 || h_ind>(int)(marking_height_above_ground_/voxel_resolution_) || h_ind<(int)(marking_height_under_ground_/voxel_resolution_))
         continue;
 
       insert_ptr_ = pc_3d_map_[index].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
@@ -502,7 +502,7 @@ void DepthCameraObstacleLayer::ProcessCluster(std::vector<costmap_depth_camera::
 
       //check height which should be the same as what we did
       int h_ind = (int)round(cluster_cloud->points[i].z*(1/voxel_resolution_));
-      if(mx<0 || my<0 || h_ind>(int)marking_height_above_ground_/voxel_resolution_ || h_ind<(int)marking_height_under_ground_/voxel_resolution_)
+      if(mx<0 || my<0 || h_ind>(int)(marking_height_above_ground_/voxel_resolution_) || h_ind<(int)(marking_height_under_ground_/voxel_resolution_))
         continue;
       //Add into std::map
       insert_ptr_ = pc_3d_map_global_[std::pair<int, int>(mmx, mmy)].insert(std::pair<int, float>(h_ind, cluster_cloud->points[i].intensity));
