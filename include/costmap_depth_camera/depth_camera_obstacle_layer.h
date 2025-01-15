@@ -56,16 +56,13 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 // observation buffer
-#include <costmap_depth_camera/observation_buffer.h>
-#include <costmap_depth_camera/frustum_utils.hpp>
+#include <nav2_costmap_2d/observation_buffer_depth.h>
+#include <nav2_costmap_2d/frustum_utils.hpp>
 
 // messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include "std_msgs/msg/bool.hpp"
-#include "visualization_msgs/msg/marker.hpp"
-#include "visualization_msgs/msg/marker_array.hpp"
 
 // tf
 #include <tf2_ros/message_filter.h>
@@ -76,7 +73,6 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
-
 
 /// References
 /// https://navigation.ros.org/plugin_tutorials/docs/writing_new_costmap2d_plugin.html
@@ -121,11 +117,6 @@ namespace nav2_costmap_2d
   
   bool getMarkingObservations(std::vector<nav2_costmap_2d::ObservationDepth>& marking_observations) const;
 
-  /// @brief  Get the observations used to clear space
-  /// @param clearing_observations A reference to a vector that will be populated with the observations
-  /// @return True if all the observation buffers are current, false otherwise
-  bool getClearingObservations(std::vector<nav2_costmap_2d::ObservationDepth>& clearing_observations) const;
-
   std::vector<geometry_msgs::msg::Point> transformed_footprint_;
 
   bool footprint_clearing_enabled_;
@@ -149,11 +140,11 @@ namespace nav2_costmap_2d
   int combination_method_;
 
 private:
-  
   /// Publishers for debugging
   /// http://wiki.ros.org/pcl/Overview [publish pcl<T> without conversion]
   /// https://answers.ros.org/question/312587/generate-and-publish-pointcloud2-in-ros2/ [pcl to sensor_msgs]
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr frustum_pub_;
+
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr frustum_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr marking_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
 
@@ -167,8 +158,7 @@ private:
   /// Clearing mechanism
   void ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
                             std::vector<nav2_costmap_2d::ObservationDepth>& observations,
-                            double robot_x, double robot_y,
-                            double* min_x, double* min_y, double* max_x, double* max_y);
+                            double robot_x, double robot_y);
 
   /// Marking mechanism
   void ProcessCluster(std::vector<nav2_costmap_2d::ObservationDepth>& observations,
@@ -220,11 +210,6 @@ private:
 
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_obstacle_layer_sub_;
   void enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg);
-  bool restricted_;
-
-  
-  ///Down size combined observations to save computation
-  bool use_voxelized_observation_;
 
 };      /// class DepthCameraObstacleLayer
 }       /// namespace nav2_costmap_2d 

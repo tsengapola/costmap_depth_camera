@@ -52,27 +52,11 @@ namespace nav2_costmap_2d
 
     }
 
-    ObservationDepth::ObservationDepth(const ObservationDepth& obs) 
-    : origin_(obs.origin_)
-    , cloud_(new pcl::PointCloud<pcl::PointXYZI>(*(obs.cloud_)))
-    , frustum_(new pcl::PointCloud<pcl::PointXYZ>(*(obs.frustum_)))
-    , frustum_normal_(new pcl::PointCloud<pcl::PointXYZ>(*(obs.frustum_normal_)))
-    , frustum_plane_equation_(obs.frustum_plane_equation_)
-    , FOV_V_(obs.FOV_V_)
-    , FOV_W_(obs.FOV_W_)
-    , min_detect_distance_(obs.min_detect_distance_)
-    , max_detect_distance_(obs.max_detect_distance_)
-    , BRNear_(obs.BRNear_)
-    , TLFar_(obs.TLFar_)
-    {
-
-    }
-
     ObservationDepth::~ObservationDepth()
     {
-        delete cloud_;
-        delete frustum_;
-        delete frustum_normal_;
+        cloud_.reset();
+        frustum_.reset();
+        frustum_normal_.reset();
     }
 
     pcl::PointXYZ ObservationDepth::getVec(pcl::PointXYZ vec1, pcl::PointXYZ vec2)
@@ -259,3 +243,4 @@ namespace nav2_costmap_2d
     }
 
 } /// namespace nav2_costmap_2d
+

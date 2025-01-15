@@ -71,7 +71,7 @@ namespace nav2_costmap_2d
   ///////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::onInitialize(void)
   {
-    restricted_ = false;
+    enabled_ = false;
     RCLCPP_INFO(logger_, "%s being initialized as DepthCameraObstacleLayer!", getName().c_str());
     
     auto node = node_.lock();
@@ -93,7 +93,7 @@ namespace nav2_costmap_2d
     ///Publishers for visualization
     auto pub_opt = rclcpp::PublisherOptions();
     auto sub_opt = rclcpp::SubscriptionOptions();
-    
+
     frustum_pub_ = node->create_publisher<visualization_msgs::msg::MarkerArray>("frustum", rclcpp::QoS(1), pub_opt);
     marking_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("marking_pc", rclcpp::QoS(1), pub_opt);
     cluster_pub_ = node->create_publisher<sensor_msgs::msg::PointCloud2>("clustered_pc", rclcpp::QoS(1), pub_opt);
@@ -129,8 +129,8 @@ namespace nav2_costmap_2d
     node->get_parameter(name_ + ".use_global_frame_to_mark", use_global_frame_to_mark_);
 
     declareParameter("use_voxelized_observation", rclcpp::ParameterValue(true));
-    node->get_parameter(name_ + ".use_voxelized_observation", use_voxelized_observation_);    
-
+    node->get_parameter(name_ + ".use_voxelized_observation", use_voxelized_observation_);
+    
     marking_height_under_ground_ = 100.0;
     marking_height_above_ground_ = -100.0;
 
@@ -312,7 +312,7 @@ namespace nav2_costmap_2d
   }
 
   void DepthCameraObstacleLayer::enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg){
-    restricted_ = !msg->data;
+    enabled_ = msg->data;
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////
@@ -341,14 +341,11 @@ namespace nav2_costmap_2d
     //RCLCPP_INFO(logger_,"check radius: %.2f",check_radius_);
 
     bool current = true;
-    std::vector<ObservationDepth> observations, clearing_observations;
+    std::vector<ObservationDepth> observations;
 
     /// get the marking observations
     current = current && getMarkingObservations(observations);
-
-    /// get the clearing observations
-    //current = current && getClearingObservations(clearing_observations);
-
+    
     /// update the global current status
     current_ = current;
 
@@ -357,14 +354,13 @@ namespace nav2_costmap_2d
 
     ///combine all pointcloud from all observations
     pcl::PointCloud<pcl::PointXYZI>::Ptr combined_observations(new pcl::PointCloud<pcl::PointXYZI>);
-    for (std::vector<nav2_costmap_2d::ObservationDepth>::const_iterator it = observations.begin(); it != observations.end(); ++it)
+    for (auto it = observations.begin(); it != observations.end(); ++it)
     {
-      const nav2_costmap_2d::ObservationDepth& obs = *it;
-      *combined_observations += *(obs.cloud_);
+      *combined_observations += (*(*it).cloud_);
     }
 
     ///Given combined pointcloud to clear the markings by kd-tree method
-    ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y, min_x, min_y, max_x, max_y);
+    ClearMarkingbyKdtree(combined_observations, observations, robot_x, robot_y);
 
     /// For cluster pub
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_clustered2pub(new pcl::PointCloud<pcl::PointXYZI>);
@@ -420,7 +416,12 @@ namespace nav2_costmap_2d
       }
       
     }
-    
+
+    //@ clear ptr
+    for (auto it = observations.begin(); it != observations.end(); ++it)
+    {
+      (*it).cloud_.reset();
+    }
     updateFootprint(robot_x, robot_y, robot_yaw, min_x, min_y, max_x, max_y);
   }
 
@@ -445,9 +446,6 @@ namespace nav2_costmap_2d
         master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
         master->getOriginX(), master->getOriginY());
     }
-    
-    if(restricted_)
-      return;
 
     unsigned int mx, my; 
 
@@ -630,33 +628,14 @@ namespace nav2_costmap_2d
     /// get the marking observations
     for (unsigned int i = 0; i < marking_buffers_.size(); ++i)
     {
+      ObservationDepth obs;
       marking_buffers_[i]->lock();
-      marking_buffers_[i]->getObservations(marking_observations);
+      marking_buffers_[i]->getObservations(obs);
       current = marking_buffers_[i]->isCurrent() && current;
       marking_buffers_[i]->unlock();
+      marking_observations.push_back(obs);
     }
-    marking_observations.insert(marking_observations.end(),
-                                static_marking_observations_.begin(),
-                                static_marking_observations_.end());
-    return current;
-  }
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  bool DepthCameraObstacleLayer::getClearingObservations(std::vector<ObservationDepth>& clearing_observations) const
-  {
-
-    bool current = true;
-    /// get the clearing observations
-    for (unsigned int i = 0; i < clearing_buffers_.size(); ++i)
-    {
-      clearing_buffers_[i]->lock();
-      clearing_buffers_[i]->getObservations(clearing_observations);
-      current = clearing_buffers_[i]->isCurrent() && current;
-      clearing_buffers_[i]->unlock();
-    }
-    clearing_observations.insert(clearing_observations.end(),
-                                 static_clearing_observations_.begin(),
-                                 static_clearing_observations_.end());
+    
     return current;
   }
 
@@ -767,8 +746,7 @@ namespace nav2_costmap_2d
   ///////////////////////////////////////////////////////////////////////////////////////////
   void DepthCameraObstacleLayer::ClearMarkingbyKdtree(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in, 
                                                       std::vector<nav2_costmap_2d::ObservationDepth>& observations,
-                                                      double robot_x, double robot_y,
-                                                      double* min_x, double* min_y, double* max_x, double* max_y)
+                                                      double robot_x, double robot_y)
   {
     
     pcl::PointXYZI searchPoint;
@@ -874,7 +852,6 @@ namespace nav2_costmap_2d
             ///Nothing is detected, clear all markings.
             //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
-            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
@@ -882,7 +859,6 @@ namespace nav2_costmap_2d
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
-            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if (is_in_FRUSTUM && !bypass_clearing) 
           {
@@ -890,7 +866,6 @@ namespace nav2_costmap_2d
             {
               //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
-              touch(wx, wy, min_x, min_y, max_x, max_y);
             }
           } 
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)
@@ -955,7 +930,6 @@ namespace nav2_costmap_2d
             ///Nothing is detected, clear all markings.
             //RCLCPP_WARN(logger_,"Clear all markinging in this frame.");
             (*it_3d_map).second.erase(it);
-            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if(is_in_FRUSTUM && !bypass_clearing && pc_dis<=forced_clearing_distance_)
           {
@@ -963,7 +937,6 @@ namespace nav2_costmap_2d
             //if(pc_dis<=forced_clearing_distance_)
             //  RCLCPP_WARN(logger_,"Clear by Footprint: %.2f",pc_dis);
             (*it_3d_map).second.erase(it);
-            touch(wx, wy, min_x, min_y, max_x, max_y);
           }
           else if (is_in_FRUSTUM && !bypass_clearing) 
           {
@@ -971,7 +944,6 @@ namespace nav2_costmap_2d
             {
               //RCLCPP_WARN(logger_,"Erase by kdtree: %.2f, %.2f, %.2f", searchPoint.x, searchPoint.y, searchPoint.z);
               (*it_3d_map).second.erase(it);
-              touch(wx, wy, min_x, min_y, max_x, max_y);
             }
           }
           else if (!is_in_FRUSTUM && is_attach_FRUSTUM)

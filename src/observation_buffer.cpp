@@ -36,7 +36,8 @@
  *********************************************************************/
 #include <rclcpp/rclcpp.hpp>
 #include <costmap_depth_camera/observation_buffer.h>
-#include <pcl_ros/transforms.hpp>
+#include <pcl/common/transforms.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 
 using namespace std;
 using namespace tf2;
@@ -82,7 +83,6 @@ ObservationBufferDepth::ObservationBufferDepth(string topic_name,
 , use_voxelized_observation_(use_voxelized_observation)
 , clock_(clock)
 , logger_(logger)
-
 {
 }
 
@@ -92,9 +92,11 @@ ObservationBufferDepth::~ObservationBufferDepth()
 
 void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cloud)
 {
-  // create a new observation on the list to be populated
-  observation_list_.push_front(ObservationDepth());
-
+  
+  observation_.cloud_->points.clear();
+  observation_.frustum_->points.clear();
+  observation_.frustum_normal_->points.clear();
+  observation_.frustum_plane_equation_.clear();
   // check whether the origin frame has been set explicitly or whether we should get it from the cloud
   string origin_frame = sensor_frame_ == "" ? cloud.header.frame_id : sensor_frame_;
   
@@ -103,14 +105,10 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     RCLCPP_WARN_STREAM(logger_,"Warning: Sensor frame is not provided in yaml file. Using pointcloud header frame id");
   }
   
-  /// For debugging only
-  //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ global frame: " << global_frame_.c_str());
-  //RCLCPP_WARN_STREAM(logger_, "+++++++++++++++++ local frame: " << origin_frame.c_str());
-  
   /// Check the cloud size 
   pcl::PointCloud<pcl::PointXYZI>::Ptr rawcloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(cloud, *rawcloud);
-
+  
   //voxelized pc to save computation
   if(use_voxelized_observation_){
     pcl::VoxelGrid<pcl::PointXYZI> ds_rawcloud;
@@ -125,41 +123,37 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     return;
   }
   
-  sensor_msgs::msg::PointCloud2::SharedPtr ds_cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-  pcl::toROSMsg(*rawcloud, *ds_cloud_msg);
-
   try
   {
     // given these observations come from sensors... we'll need to store the origin pt of the sensor
-    observation_list_.front().frame_id_ = cloud.header.frame_id;
     geometry_msgs::msg::TransformStamped T_S_C_msg;
     T_S_C_msg = tf2_buffer_.lookupTransform(global_frame_, origin_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
-    observation_list_.front().origin_.x = T_S_C_msg.transform.translation.x;
-    observation_list_.front().origin_.y = T_S_C_msg.transform.translation.y;
-    observation_list_.front().origin_.z = T_S_C_msg.transform.translation.z;
+    observation_.origin_.x = T_S_C_msg.transform.translation.x;
+    observation_.origin_.y = T_S_C_msg.transform.translation.y;
+    observation_.origin_.z = T_S_C_msg.transform.translation.z;
     
     /// Update camera parameters
-    observation_list_.front().min_detect_distance_ = min_detect_distance_;
-    observation_list_.front().max_detect_distance_ = max_detect_distance_;
-    observation_list_.front().FOV_W_ = FOV_W_;
-    observation_list_.front().FOV_V_ = FOV_V_;
+    observation_.min_detect_distance_ = min_detect_distance_;
+    observation_.max_detect_distance_ = max_detect_distance_;
+    observation_.FOV_W_ = FOV_W_;
+    observation_.FOV_V_ = FOV_V_;
     
     /// Find frustum vertex (8 points) and transform it to global.
     /// !!! Frustum vertex is usually based on camera_link frame (realsense).
-    observation_list_.front().findFrustumVertex();
+    observation_.findFrustumVertex();
     
-    pcl_conversions::toPCL(cloud.header.stamp, observation_list_.front().frustum_->header.stamp);
-    observation_list_.front().frustum_->header.frame_id = origin_frame;
+    pcl_conversions::toPCL(cloud.header.stamp, observation_.frustum_->header.stamp);
+    observation_.frustum_->header.frame_id = origin_frame;
+
+    Eigen::Affine3d trans_m2s_af3 = tf2::transformToEigen(T_S_C_msg);
+    pcl::transformPointCloud(*observation_.frustum_, *observation_.frustum_, trans_m2s_af3);
     
-    /// ToDo: Remove dependency on pcl_ros to transform the pointcloud
-    pcl_ros::transformPointCloud(global_frame_, *observation_list_.front().frustum_, *observation_list_.front().frustum_, tf2_buffer_);
-    
-    observation_list_.front().frustum_->header.frame_id = global_frame_;
+    observation_.frustum_->header.frame_id = global_frame_;
     
     /// Find frustum normal and plane, note that the planes/normals are in global frame
     /// !!! findFrustumNormal() will assign BRNear_&&TLFar_  which are both in global frame
-    observation_list_.front().findFrustumNormal();
-    observation_list_.front().findFrustumPlane();
+    observation_.findFrustumNormal();
+    observation_.findFrustumPlane();
     
     /// Transform the point cloud, from camera_depth_optical_frame
     
@@ -167,7 +161,7 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     geometry_msgs::msg::TransformStamped tf_stamped = 
     tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
     //tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2::TimePointZero, tf2::durationFromSec(0.5));
-    tf2::doTransform(*ds_cloud_msg, *global_frame_cloud, tf_stamped);
+    tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
@@ -182,25 +176,23 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
         tmp_pt.y = *iter_y;
         tmp_pt.z = *iter_z;
         tmp_pt.intensity = 0;
-        observation_list_.front().cloud_->push_back(tmp_pt);
+        observation_.cloud_->push_back(tmp_pt);
       }
     }
 
-    if(observation_list_.front().cloud_->size() >10000)
+    if(observation_.cloud_->size() >10000)
     {
-      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_list_.front().cloud_->size() <<" is larger than 5000 points. Exiting.. ");
+      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_.cloud_->size() <<" is larger than 5000 points. Exiting.. ");
       return;
     }
 
-    pcl_conversions::toPCL(clock_->now(), observation_list_.front().cloud_->header.stamp);
-    observation_list_.front().cloud_->header.frame_id = global_frame_;
+    pcl_conversions::toPCL(clock_->now(), observation_.cloud_->header.stamp);
+    observation_.cloud_->header.frame_id = global_frame_;
 
-    ///RCLCPP_WARN_STREAM(logger_, "++++++observation cloud size: " << observation_list_.front().cloud_->size() << ", count: " << tmp_count);
+    ///RCLCPP_WARN_STREAM(logger_, "++++++observation cloud size: " << observation_.cloud_->size() << ", count: " << tmp_count);
   }
   catch (TransformException& ex)
   {
-    // if an exception occurs, we need to remove the empty observation from the list
-    observation_list_.pop_front();
     RCLCPP_ERROR(logger_,"TF Exception that should never happen for sensor frame: %s, cloud frame: %s, %s", sensor_frame_.c_str(),
                  cloud.header.frame_id.c_str(), ex.what());
     return;
@@ -209,59 +201,26 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
   // if the update was successful, we want to update the last updated time
   last_updated_ = clock_->now();
 
-  // we'll also remove any stale observations from the list
-  purgeStaleObservations();
 }
 
-// returns a copy of the observations
-void ObservationBufferDepth::getObservations(vector<ObservationDepth>& observations)
+// returns a copy of the observation
+void ObservationBufferDepth::getObservations(nav2_costmap_2d::ObservationDepth& observation)
 {
- 
-  // first... let's make sure that we don't have any stale observations
-  purgeStaleObservations();
-
-  // now we'll just copy the observations for the caller
-  list<ObservationDepth>::iterator obs_it;
-  for (obs_it = observation_list_.begin(); obs_it != observation_list_.end(); ++obs_it)
-  {
-    observations.push_back(*obs_it);
-  }
-}
-
-void ObservationBufferDepth::purgeStaleObservations()
-{
-  if (!observation_list_.empty())
-  {
-    list<ObservationDepth>::iterator obs_it = observation_list_.begin();
-    // if we're keeping observations for no time... then we'll only keep one observation
-    if (observation_keep_time_ == rclcpp::Duration(rclcpp::Duration::from_seconds(0.0)))
-    {
-      observation_list_.erase(++obs_it, observation_list_.end());
-      return;
-    }
-
-    // otherwise... we'll have to loop through the observations to see which ones are stale
-    for (obs_it = observation_list_.begin(); obs_it != observation_list_.end(); ++obs_it)
-    {
-      nav2_costmap_2d::ObservationDepth& obs = *obs_it;
-      
-      const rclcpp::Duration time_diff = last_updated_ - pcl_conversions::fromPCL(obs.cloud_->header).stamp;
-      
-      if ((last_updated_ - pcl_conversions::fromPCL(obs.cloud_->header).stamp) > observation_keep_time_)
-      {
-        observation_list_.erase(obs_it, observation_list_.end());
-        return;
-      }
-    }
-  }
+  //do copy instead of ptr copy
+  (*observation.cloud_) = (*observation_.cloud_);
+  (*observation.frustum_) = (*observation_.frustum_);
+  (*observation.frustum_normal_) = (*observation_.frustum_normal_);
+  observation.frustum_plane_equation_ = observation_.frustum_plane_equation_;
+  observation.FOV_V_ = observation_.FOV_V_;
+  observation.FOV_W_ = observation_.FOV_W_;
+  observation.min_detect_distance_ = observation_.min_detect_distance_;
+  observation.max_detect_distance_ = observation_.max_detect_distance_;
+  observation.BRNear_ = observation_.BRNear_;
+  observation.TLFar_ = observation_.TLFar_;
 }
 
 bool ObservationBufferDepth::isCurrent() const
-{
-  
-  /// A quick hack
-  return true;
-  
+{ 
   if (expected_update_rate_ == rclcpp::Duration(rclcpp::Duration::from_seconds(0.0)))
     return true;
 
@@ -283,3 +242,4 @@ void ObservationBufferDepth::resetLastUpdated()
 }
 
 }  // namespace nav2_costmap_2d
+

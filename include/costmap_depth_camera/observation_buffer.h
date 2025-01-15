@@ -39,7 +39,6 @@
 
 // STL
 #include <vector>
-#include <list>
 #include <string>
 #include <chrono>
 #include <memory>
@@ -51,19 +50,11 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
-
-//TF2
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
-
 // Observation
 #include <costmap_depth_camera/observation.h>
 
 // Thread support
 #include <boost/thread.hpp>
-
-/*This is for voxelized pc*/
-#include <pcl/filters/voxel_grid.h>
 
 namespace nav2_costmap_2d
 {
@@ -104,60 +95,31 @@ public:
                     double FOV_W,
                     double min_detect_distance,
                     double max_detect_distance,
-                    bool use_voxelized_observation,
                     rclcpp::Clock::SharedPtr clock,
                     rclcpp::Logger logger);
 
-  /**
-   * @brief  Destructor... cleans up
-   */
   ~ObservationBufferDepth();
 
-  /**
-   * @brief  Transforms a PointCloud to the global frame and buffers it
-   * <b>Note: The burden is on the user to make sure the transform is available... ie they should use a MessageNotifier</b>
-   * @param  cloud The cloud to be buffered
-   */
   void bufferCloud(const sensor_msgs::msg::PointCloud2& cloud);
 
-  /**
-   * @brief  Pushes copies of all current observations onto the end of the vector passed in
-   * @param  observations The vector to be filled
-   */
-  void getObservations(std::vector<ObservationDepth>& observations);
+  void getObservations(ObservationDepth& observations);
 
-  /**
-   * @brief  Check if the observation buffer is being update at its expected rate
-   * @return True if it is being updated at the expected rate, false otherwise
-   */
   bool isCurrent() const;
 
-  /**
-   * @brief  Lock the observation buffer
-   */
   inline void lock()
   {
     lock_.lock();
   }
 
-  /**
-   * @brief  Lock the observation buffer
-   */
+
   inline void unlock()
   {
     lock_.unlock();
   }
 
-  /**
-   * @brief Reset last updated timestamp
-   */
   void resetLastUpdated();
 
 private:
-  /**
-   * @brief  Removes any stale observations from the buffer list
-   */
-  void purgeStaleObservations();
 
   tf2_ros::Buffer& tf2_buffer_;
   const rclcpp::Duration observation_keep_time_;
@@ -179,7 +141,7 @@ private:
   rclcpp::Logger logger_;
 
 
-  std::list<ObservationDepth> observation_list_;
+  ObservationDepth observation_;
   boost::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
 
   /// Adaotive height change
@@ -187,8 +149,7 @@ private:
   unsigned long adpat_height_cout_time_nsec_ = 10e9;
   bool adapt_height_init_ = false;
 
-  ///Down size combined observations to save computation
-  bool use_voxelized_observation_; 
+   
   
 };
 }  // namespace nav2_costmap_2d

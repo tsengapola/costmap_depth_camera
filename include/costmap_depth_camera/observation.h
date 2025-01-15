@@ -56,12 +56,6 @@ public:
    */
   ObservationDepth();
 
-  /**
-   * @brief  Copy constructor
-   * @param obs The observation to copy
-   */
-  ObservationDepth(const ObservationDepth& obs);
-
   virtual ~ObservationDepth();
 
 
@@ -75,13 +69,12 @@ public:
 
   /// These points are for frustum check
   geometry_msgs::msg::Point origin_;
-  pcl::PointCloud<pcl::PointXYZI>* cloud_;
-  pcl::PointCloud<pcl::PointXYZ>* frustum_;
-  pcl::PointCloud<pcl::PointXYZ>* frustum_normal_;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr frustum_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr frustum_normal_;
   std::vector<Eigen::Vector4f> frustum_plane_equation_;
 
   /// These parameter is essential for depth camera
-  std::string frame_id_;
   double FOV_V_;
   double FOV_W_;
   double min_detect_distance_;
@@ -94,3 +87,4 @@ public:
 }; /// class ObservationDepth
 }  /// namespace nav2_costmap_2d
 #endif  // COSTMAP_DEPTH_CAMERA_OBSERVATION_H_
+
