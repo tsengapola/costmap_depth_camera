@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format ="3">
   <name>costmap_depth_camera</name>
-  <version>3.0.0</version>
+  <version>3.1.0</version>
   <description>This package uses point cloud along with camera characteristic (FOV, detection range etc...) to 
   mark and clear obstacles in costmap_2d.
   </description>
@@ -36,8 +36,8 @@
   <depend>tf2_sensor_msgs</depend>
   <depend>visualization_msgs</depend>
   <depend>pcl_ros</depend>
-
-
+  <depend>tf2_eigen</depend>
+  
   <!-- <test_depend>ament_lint_auto</test_depend> -->
   <!-- <member_of_group>rosidl_interface_packages</member_of_group> -->
   <export>

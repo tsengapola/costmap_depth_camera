@@ -46,7 +46,7 @@ namespace nav2_costmap_2d
 {
   using namespace std::chrono_literals;
 
-ObservationBufferDepth::ObservationBufferDepth(string topic_name,
+ObservationBufferDepth::ObservationBufferDepth(std::string topic_name,
                                      double observation_keep_time,
                                      double expected_update_rate,
                                      double min_obstacle_height,
@@ -54,8 +54,8 @@ ObservationBufferDepth::ObservationBufferDepth(string topic_name,
                                      double obstacle_range,
                                      double raytrace_range,
                                      tf2_ros::Buffer& tf2_buffer,
-                                     string global_frame,
-                                     string sensor_frame,
+                                     std::string global_frame,
+                                     std::string sensor_frame,
                                      double tf_tolerance,
                                      double FOV_V,
                                      double FOV_W,

@@ -28,6 +28,7 @@ find_package(tf2_sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 
 #find_package(OpenVDB REQUIRED)
 #remove_definitions(-DDISABLE_LIBUSB-1.0)
@@ -67,6 +68,7 @@ set(dependencies
   visualization_msgs
   builtin_interfaces
   pcl_ros
+  tf2_eigen
 )
 
 set(library_name costmap_depth_camera_core)

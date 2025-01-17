@@ -56,13 +56,15 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
 // observation buffer
-#include <nav2_costmap_2d/observation_buffer_depth.h>
-#include <nav2_costmap_2d/frustum_utils.hpp>
+#include <costmap_depth_camera/observation_buffer.h>
+#include <costmap_depth_camera/frustum_utils.hpp>
 
 // messages
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include "std_msgs/msg/bool.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 // tf
 #include <tf2_ros/message_filter.h>
@@ -144,7 +146,7 @@ private:
   /// http://wiki.ros.org/pcl/Overview [publish pcl<T> without conversion]
   /// https://answers.ros.org/question/312587/generate-and-publish-pointcloud2-in-ros2/ [pcl to sensor_msgs]
 
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr frustum_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr frustum_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr marking_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
 
@@ -211,6 +213,9 @@ private:
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_obstacle_layer_sub_;
   void enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg);
 
+  ///Down size combined observations to save computation
+  bool use_voxelized_observation_;
+  
 };      /// class DepthCameraObstacleLayer
 }       /// namespace nav2_costmap_2d 
 #endif  /// COSTMAP_DEPTH_CAMERA_OBSTACLE_LAYER_H_
