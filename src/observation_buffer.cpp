@@ -127,7 +127,15 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
   {
     // given these observations come from sensors... we'll need to store the origin pt of the sensor
     geometry_msgs::msg::TransformStamped T_S_C_msg;
-    T_S_C_msg = tf2_buffer_.lookupTransform(global_frame_, origin_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
+    try{
+      T_S_C_msg = tf2_buffer_.lookupTransform(global_frame_, origin_frame, tf2::TimePointZero, tf2::durationFromSec(0.5));
+    }
+    catch (tf2::TransformException& e)
+    {
+      RCLCPP_DEBUG(logger_, "%s", e.what());
+      return;
+    }
+
     observation_.origin_.x = T_S_C_msg.transform.translation.x;
     observation_.origin_.y = T_S_C_msg.transform.translation.y;
     observation_.origin_.z = T_S_C_msg.transform.translation.z;
@@ -154,35 +162,31 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
     /// !!! findFrustumNormal() will assign BRNear_&&TLFar_  which are both in global frame
     observation_.findFrustumNormal();
     observation_.findFrustumPlane();
-    
-    /// Transform the point cloud, from camera_depth_optical_frame
-    
-    point_cloud_ptr global_frame_cloud(new sensor_msgs::msg::PointCloud2());
-    geometry_msgs::msg::TransformStamped tf_stamped = 
-    tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2_ros::fromMsg(cloud.header.stamp));
-    //tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2::TimePointZero, tf2::durationFromSec(0.5));
-    tf2::doTransform(cloud, *global_frame_cloud, tf_stamped);
+    /// Transform the point cloud to global frame (basically z pointing up), from sensor frame
+    geometry_msgs::msg::TransformStamped ros_tf_global2optical;
 
-    sensor_msgs::PointCloud2ConstIterator<float> iter_x(*global_frame_cloud, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_y(*global_frame_cloud, "y");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_z(*global_frame_cloud, "z");
-
-    for (; iter_x !=iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
+    try{
+      ros_tf_global2optical = tf2_buffer_.lookupTransform(global_frame_, cloud.header.frame_id, tf2::TimePointZero, tf2::durationFromSec(0.5));
+    }
+    catch (tf2::TransformException& e)
     {
-      if ((*iter_z) <= max_obstacle_height_ && (*iter_z) >= min_obstacle_height_)
-      {
-        pcl::PointXYZI tmp_pt;
-        tmp_pt.x = *iter_x;
-        tmp_pt.y = *iter_y;
-        tmp_pt.z = *iter_z;
-        tmp_pt.intensity = 0;
-        observation_.cloud_->push_back(tmp_pt);
-      }
+      RCLCPP_DEBUG(logger_, "%s", e.what());
+      return;
     }
 
+    Eigen::Affine3d trans_m2optical_af3 = tf2::transformToEigen(ros_tf_global2optical);
+    pcl::transformPointCloud(*rawcloud, *rawcloud, trans_m2optical_af3);
+    
+    for(auto rit=rawcloud->points.begin(); rit!=rawcloud->points.end(); rit++){
+      if ((*rit).z <= max_obstacle_height_ && (*rit).z >= min_obstacle_height_)
+      {
+        observation_.cloud_->push_back((*rit));
+      }
+    }
+    
     if(observation_.cloud_->size() >10000)
     {
-      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_.cloud_->size() <<" is larger than 5000 points. Exiting.. ");
+      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_.cloud_->size() <<" is larger than 10000 points. Exiting.. ");
       return;
     }
 

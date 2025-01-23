@@ -209,7 +209,8 @@ private:
   void intIndexToWorld(double& wx, double& wy, int mx, int my, double resolution) const;
 
   bool has_costmap_initial_;
-
+  bool is_first_frame_received_;
+  
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enable_obstacle_layer_sub_;
   void enableObstacleLayerCB(const std_msgs::msg::Bool::SharedPtr msg);
 

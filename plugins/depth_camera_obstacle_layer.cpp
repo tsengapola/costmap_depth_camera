@@ -77,6 +77,7 @@ namespace nav2_costmap_2d
     auto node = node_.lock();
     rolling_window_ = layered_costmap_->isRolling();
     has_costmap_initial_ = false;
+    is_first_frame_received_ = false;
 
     bool track_unknown_space;
     declareParameter("track_unknown_space", rclcpp::ParameterValue(layered_costmap_->isTrackingUnknown()));
@@ -334,6 +335,10 @@ namespace nav2_costmap_2d
     if(!has_costmap_initial_){
       return;
     }
+    
+    if(!is_first_frame_received_){
+      return;
+    }
 
     //RCLCPP_INFO(logger_,"ec distance: %.2f",ec_seg_distance_);
     //RCLCPP_INFO(logger_,"ec seg min size: %.d",ec_cluster_min_size_);
@@ -445,6 +450,10 @@ namespace nav2_costmap_2d
       resizeMap(
         master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
         master->getOriginX(), master->getOriginY());
+    }
+
+    if(!is_first_frame_received_){
+      return;
     }
 
     unsigned int mx, my; 
@@ -588,6 +597,7 @@ namespace nav2_costmap_2d
     buffer->bufferCloud(*message);
     buffer->unlock();
     current_ = true;
+    is_first_frame_received_ = true;
   }
 
   //////////////////////////////////////////////////////////////////////////////////
