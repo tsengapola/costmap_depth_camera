@@ -119,8 +119,7 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
 
   if(rawcloud->size() >20000)
   {
-    RCLCPP_ERROR_STREAM(logger_, "Raw cloud size " << rawcloud->size() <<" is larger than 20000 points. Exiting.. ");
-    return;
+    RCLCPP_DEBUG_STREAM(logger_, "Raw cloud size " << rawcloud->size() <<" is larger than 20000 points. Exiting.. ");
   }
   
   try
@@ -183,15 +182,15 @@ void ObservationBufferDepth::bufferCloud(const sensor_msgs::msg::PointCloud2& cl
         observation_.cloud_->push_back((*rit));
       }
     }
-    
-    if(observation_.cloud_->size() >10000)
-    {
-      RCLCPP_ERROR_STREAM(logger_, "ObservationDepth size " << observation_.cloud_->size() <<" is larger than 10000 points. Exiting.. ");
-      return;
-    }
 
     pcl_conversions::toPCL(clock_->now(), observation_.cloud_->header.stamp);
     observation_.cloud_->header.frame_id = global_frame_;
+
+    if(observation_.cloud_->size() >10000)
+    {
+      RCLCPP_WARN_STREAM(logger_, "ObservationDepth size " << observation_.cloud_->size() <<" is larger than 10000 points. The update rate will be slow.");
+      return;
+    }
 
     ///RCLCPP_WARN_STREAM(logger_, "++++++observation cloud size: " << observation_.cloud_->size() << ", count: " << tmp_count);
   }

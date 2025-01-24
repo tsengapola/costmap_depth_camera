@@ -68,7 +68,7 @@ namespace nav2_costmap_2d
         dis = dis/sqrt(a*a+b*b+c*c);
         float dis2rej = 0.12;
 
-        if(dis <= dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_+0.5)
+        if(dis <= dis2rej && hypot(testPoint.x-obs.origin_.x, testPoint.y-obs.origin_.y)<obs.max_detect_distance_*1.25)
         {
         //find one frustum such that no attachment and inside frumstum
           for (std::vector<nav2_costmap_2d::ObservationDepth>::iterator it_inner = (*observations_).begin(); it_inner != (*observations_).end(); ++it_inner)
@@ -101,7 +101,7 @@ namespace nav2_costmap_2d
       float dis = fabs(a*testPoint.x+b*testPoint.y+c*testPoint.z+d);
       dis = dis/sqrt(a*a+b*b+c*c);
       float dis2rej = 0.12;
-      if(dis<=dis2rej && hypot(testPoint.x-observation.origin_.x, testPoint.y-observation.origin_.y)<observation.max_detect_distance_+0.5)
+      if(dis<=dis2rej && hypot(testPoint.x-observation.origin_.x, testPoint.y-observation.origin_.y)<observation.max_detect_distance_*1.25)
       {
         return false;
       }
