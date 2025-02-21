@@ -1008,10 +1008,16 @@ namespace nav2_costmap_2d
       wx = pt.x;
       wy = pt.y;
 
+
+      //Handle rounding problem
+      worldToIntIndex(wx, wy, mmx, mmy, layered_costmap_->getCostmap()->getResolution());
+      intIndexToWorld(wx, wy, mmx, mmy, layered_costmap_->getCostmap()->getResolution());
+      int h_ind_pre_test = (int)round(pt.z*(1/voxel_resolution_));
+
       pcl::PointXYZI searchPoint;
       searchPoint.x = wx;
       searchPoint.y = wy;
-      searchPoint.z = cluster_cloud->points[i].z;
+      searchPoint.z = h_ind_pre_test*voxel_resolution_;
 
       bool is_in_FRUSTUM = frustum_utils.isInsideFRUSTUMs(searchPoint);
       bool is_attach_FRUSTUM = frustum_utils.isAttachFRUSTUMs(searchPoint);

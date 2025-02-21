@@ -175,39 +175,32 @@ def generate_launch_description():
             arguments=["18.6", "44.3", "0.0", "0.0", "0.0", "0.0", "map", "base_link"]
         )
 
-    tf_baselink2poi_node = Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            output="screen" ,
-            arguments=["0.35", "0.0", "0.8", "0.0", "0.0", "0.0", "base_link", "poi"]
-        )
-
     tf_baselink2camera_right_node = Node(
             package="tf2_ros",
             executable="static_transform_publisher",
             output="screen" ,
-            arguments=["0.06062625", "-0.03520526", "-0.05759165", "0.67320326", "0.22852762", "0.13201488", "0.69075652", "poi", "camera_right_link"]
+            arguments=["0.376", "-0.048", "0.242", "-0.690", "-0.152", "0.055", "0.705", "base_link", "camera_right_link"]
         )
 
     tf_baselink2camera_left_node = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         output="screen" ,
-        arguments=["0.07531747", "0.03497384", "-0.05727026", "0.69597946", "-0.131985", "-0.2243832", "0.66921202", "poi", "camera_left_link"]
+        arguments=["0.376", "0.048", "0.242", "-0.705", "0.055", "-0.152", "0.691", "base_link", "camera_left_link"]
         )
 
     tf_right_optical_node = Node(
             package="tf2_ros",
             executable="static_transform_publisher",
             output="screen" ,
-            arguments=["0.0", "0.0", "0.0", "-0.5", "0.5", "-0.5", "0.5", "camera_right_link", "camera_right_depth_optical_frame"]
+            arguments=["0.0", "0.0", "0.0", "-0.5", "0.5", "-0.5", "0.5", "camera_right_link", "right_depth_optical_frame"]
         )
 
     tf_left_optical_node = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         output="screen" ,
-        arguments=["0.0", "0.0", "0.0", "-0.5", "0.5", "-0.5", "0.5", "camera_left_link", "camera_left_depth_optical_frame"]
+        arguments=["0.0", "0.0", "0.0", "-0.5", "0.5", "-0.5", "0.5", "camera_left_link", "left_depth_optical_frame"]
         )
 
     start_rviz_cmd = Node(
@@ -251,7 +244,6 @@ def generate_launch_description():
 
     # tf
     ld.add_action(tf_map2baselink_node)
-    ld.add_action(tf_baselink2poi_node)
     ld.add_action(tf_baselink2camera_right_node)
     ld.add_action(tf_baselink2camera_left_node)
     ld.add_action(tf_right_optical_node)
