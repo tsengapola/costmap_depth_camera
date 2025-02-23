@@ -1,26 +1,5 @@
 # costmap_depth_camera
 
-## Demo: Use realsense with the point cloud published
-<p float="left">
-<img src="https://github.com/tsengapola/my_image_repo/blob/main/depth_camera_plugin/humble_example.gif" width="400" height="265"/>
-</p>
-
-## Required package
-[navigation2_humble](https://github.com/ros-planning/navigation2/tree/humble)
-
-## Run example
-```
-mkdir -p ~/ws/src
-cd ~/ws/src
-git clone -b humble git@github.com:tsengapola/costmap_depth_camera.git
-cd ~/ws && source /opt/ros/humble/setup.bash
-colcon build --symlink-install --cmake-arg -DCMAKE_BUILD_TYPE=Release
-source install/setup.bash
-ros2 launch costmap_depth_camera standalone_test_launch.py
-```
-Enjoy!
-
-# costmap_depth_camera
 This is a costmap plugin for costmap_2d pkg
 
 Considering ray casting method can not satisfy sparse 3D space problem of clearing. This plugin is based on kd-tree search to clear the markings.
@@ -30,7 +9,7 @@ This plugin comprises two parts:
 2. Clearing marked pointcloud using kd-tree search which is from Point Cloud Library (PCL).
 
 ## Required package
-[costmap_2d](http://wiki.ros.org/costmap_2d)
+[navigation2_humble](https://github.com/ros-planning/navigation2/tree/humble)
   
 ## Demo: Use realsense with the point cloud published
 <p float="left">
@@ -40,55 +19,14 @@ This plugin comprises two parts:
 
 ## Launch Example
 
-* Note that costmap_depth_camera.launch subscribe imu data from realsense D435i and create TF from map-->base_link. Change anything to meet your system requirements. If you have point cloud published, realsense is not needed.
-* Note that if you are using ros-noetic then the first line of imu_tf.py is python3 which is ok! If you are using ros-melodic, change it to python2! ex: #!/usr/bin/env python3 --> #!/usr/bin/env python2
-
 ```
-roslaunch realsense2_camera rs_camera.launch
-roslaunch costmap_depth_camera costmap_depth_camera.launch 
-```
-
-## .yaml example of a workable setting:
-
-```
-costmap:
-  global_frame: map
-  robot_base_frame: base_link
-  update_frequency: 5.0
-  publish_frequency: 5
-  static_map: false
-  rolling_window: true
-  width: 20
-  height: 20
-  resolution: 0.05  
-  transform_tolerance: 1.0
-  footprint: [[0.46,0.25], [0.36,0.37], [0.33,0.39], [-0.39,0.4], [-0.48,0], [-0.39,-0.4], [0.33,-0.39], [0.36,-0.37], [0.46,-0.25], [0.49,0]]
-
-  plugins:
-    - {name: static, type: 'costmap_2d::StaticLayer'}
-    - {name: 3DPerception, type: 'costmap_depth_camera::DepthCameraObstacleLayer'}
-    - {name: inflation, type: 'costmap_2d::InflationLayer'}
-
-  static:
-    map_topic: /map
-
-  inflation:
-    inflation_radius: 1.0
-    cost_scaling_factor: 0.5
-
-  3DPerception:
-    use_global_frame_to_mark: true
-    ec_seg_distance: 0.2
-    ec_cluster_min_size: 5
-    size_of_cluster_rejection: 5
-    voxel_resolution: 0.01
-    check_radius: 0.1
-    enable_near_blocked_protection: false
-    number_points_considered_as_blocked: 5
-    forced_clearing_distance: 0.1
-    observation_sources: depth_cam #depth_cam_left
-    depth_cam: {sensor_frame: camera_link, topic: /camera/depth/color/points, expected_update_rate: 0.3, FOV_W: 1.0, FOV_V: 0.9, min_detect_distance: 0.15, max_detect_distance: 2.0, min_obstacle_height: 0.08}
-    #depth_cam_left: {sensor_frame: camera_link_left, topic: /camera_left/depth/color/points, expected_update_rate: 0.3, FOV_W: 1.0, FOV_V: 0.9, min_detect_distance: 0.15, max_detect_distance: 2.0, min_obstacle_height: 0.08}
+mkdir -p ~/ws/src
+cd ~/ws/src
+git clone -b humble git@github.com:tsengapola/costmap_depth_camera.git
+cd ~/ws && source /opt/ros/humble/setup.bash
+colcon build --symlink-install --cmake-arg -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
+ros2 launch costmap_depth_camera standalone_test_launch.py
 ```
 
 ## Parameters Description (many of them are supported in dynamic reconfigure)
